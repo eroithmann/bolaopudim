@@ -9,9 +9,9 @@ import { Trophy, Camera, X } from "lucide-react";
 import Layout from "@/components/Layout";
 
 const EMOJI_OPTIONS = [
-  "⚽", "🏆", "🥇", "🇧🇷", "🇦🇷", "🇩🇪", "🇫🇷", "🇪🇸",
-  "🇮🇹", "🇵🇹", "🇬🇧", "🇺🇸", "🇲🇽", "🇯🇵", "🇰🇷", "🇳🇱",
-  "🦁", "🐉", "🔥", "⭐", "💪", "🎯", "👑", "🎩",
+  "😎", "🤩", "😂", "🥳", "😈", "🤑", "🫡", "🤪",
+  "💀", "👻", "🔥", "❤️", "💪", "👑", "⭐", "🎯",
+  "🦁", "🐺", "🦅", "🐉", "🤡", "👽", "🤖", "💩",
 ];
 
 export default function Auth() { // updated
