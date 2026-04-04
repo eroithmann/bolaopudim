@@ -14,7 +14,7 @@ const EMOJI_OPTIONS = [
   "🦁", "🐉", "🔥", "⭐", "💪", "🎯", "👑", "🎩",
 ];
 
-export default function Auth() {
+export default function Auth() { // updated
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
