@@ -1,0 +1,205 @@
+import { getFlagUrl } from "@/lib/teamFlags";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Lock, MapPin } from "lucide-react";
+
+interface MatchTeam {
+  name: string;
+  code: string;
+}
+
+interface Prediction {
+  match_id: string;
+  home_score: number;
+  away_score: number;
+  points: number | null;
+}
+
+interface OddsData {
+  home: number | null;
+  draw: number | null;
+  away: number | null;
+  bookmaker?: string;
+}
+
+interface MatchCardProps {
+  match: {
+    id: string;
+    phase: string;
+    group_name: string | null;
+    match_date: string;
+    venue: string | null;
+    status: string;
+    home_score: number | null;
+    away_score: number | null;
+    home_team: MatchTeam | null;
+    away_team: MatchTeam | null;
+  };
+  prediction?: Prediction;
+  editScore: { home: string; away: string };
+  saving: boolean;
+  isLoggedIn: boolean;
+  odds?: OddsData | null;
+  onEditChange: (scores: { home: string; away: string }) => void;
+  onSave: () => void;
+}
+
+export default function MatchCard({
+  match, prediction, editScore, saving, isLoggedIn, odds, onEditChange, onSave,
+}: MatchCardProps) {
+  const locked = new Date(match.match_date) <= new Date();
+  const matchDate = new Date(match.match_date);
+
+  const dayOfWeek = format(matchDate, "EEEE", { locale: ptBR });
+  const dateStr = format(matchDate, "dd/MM · HH:mm", { locale: ptBR });
+  const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+
+  const getPointsBadge = (points: number | null) => {
+    if (points === null) return null;
+    if (points === 5) return <Badge className="bg-primary text-primary-foreground">5 pts - Exato!</Badge>;
+    if (points === 3) return <Badge variant="secondary">3 pts</Badge>;
+    if (points === 1) return <Badge variant="outline">1 pt</Badge>;
+    return <Badge variant="destructive">0 pts</Badge>;
+  };
+
+  return (
+    <Card className={match.status === "finished" ? "border-primary/30" : ""}>
+      <CardContent className="py-4 px-4 sm:px-6">
+        {/* Header: date + venue + group */}
+        <div className="flex justify-between items-start mb-4 text-xs text-muted-foreground">
+          <div className="flex flex-col gap-0.5">
+            <span className="font-medium">{capitalizedDay}, {dateStr}</span>
+            {match.venue && (
+              <span className="flex items-center gap-1">
+                <MapPin className="h-3 w-3" />
+                {match.venue}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            {match.group_name && <Badge variant="outline" className="text-xs">{match.group_name}</Badge>}
+            {locked && <Lock className="h-3 w-3" />}
+          </div>
+        </div>
+
+        {/* Teams row */}
+        <div className="flex items-center justify-center gap-3 sm:gap-4">
+          {/* Home team */}
+          <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
+            <span className="font-semibold text-sm sm:text-base truncate text-right">
+              {match.home_team?.name || "TBD"}
+            </span>
+            {match.home_team && (
+              <img src={getFlagUrl(match.home_team.code)} alt="" className="h-7 w-10 object-cover rounded shadow-sm shrink-0" />
+            )}
+          </div>
+
+          {/* Score / VS */}
+          <div className="shrink-0 min-w-[60px] text-center">
+            {match.status === "finished" ? (
+              <span className="font-bold text-xl tabular-nums">
+                {match.home_score} – {match.away_score}
+              </span>
+            ) : (
+              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">vs</span>
+            )}
+          </div>
+
+          {/* Away team */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {match.away_team && (
+              <img src={getFlagUrl(match.away_team.code)} alt="" className="h-7 w-10 object-cover rounded shadow-sm shrink-0" />
+            )}
+            <span className="font-semibold text-sm sm:text-base truncate">
+              {match.away_team?.name || "TBD"}
+            </span>
+          </div>
+        </div>
+
+        {/* Odds */}
+        {odds && (odds.home || odds.draw || odds.away) && (
+          <div className="mt-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">
+            <span className="font-medium text-[10px] uppercase tracking-wider opacity-60">
+              {odds.bookmaker || "Odds"}
+            </span>
+            {odds.home && (
+              <span className="bg-muted px-2 py-0.5 rounded font-mono">
+                1: {odds.home.toFixed(2)}
+              </span>
+            )}
+            {odds.draw !== null && odds.draw !== undefined && (
+              <span className="bg-muted px-2 py-0.5 rounded font-mono">
+                X: {odds.draw.toFixed(2)}
+              </span>
+            )}
+            {odds.away && (
+              <span className="bg-muted px-2 py-0.5 rounded font-mono">
+                2: {odds.away.toFixed(2)}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Prediction section */}
+        {isLoggedIn && (
+          <div className="mt-3 pt-3 border-t">
+            {locked ? (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground">Seu palpite:</span>
+                {prediction ? (
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{prediction.home_score} – {prediction.away_score}</span>
+                    {match.status === "finished" && getPointsBadge(prediction.points)}
+                  </div>
+                ) : (
+                  <span className="text-xs text-muted-foreground italic">Sem palpite</span>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground shrink-0">Palpite:</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="20"
+                  className="w-16 h-8 text-center"
+                  placeholder="0"
+                  value={editScore.home}
+                  onChange={(e) => onEditChange({ ...editScore, home: e.target.value })}
+                />
+                <span className="text-muted-foreground">–</span>
+                <Input
+                  type="number"
+                  min="0"
+                  max="20"
+                  className="w-16 h-8 text-center"
+                  placeholder="0"
+                  value={editScore.away}
+                  onChange={(e) => onEditChange({ ...editScore, away: e.target.value })}
+                />
+                <Button
+                  size="sm"
+                  className="h-8"
+                  disabled={saving || editScore.home === "" || editScore.away === ""}
+                  onClick={onSave}
+                >
+                  {saving ? "..." : prediction ? "Atualizar" : "Salvar"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {!isLoggedIn && (
+          <div className="mt-3 pt-3 border-t text-center">
+            <span className="text-xs text-muted-foreground">Faça login para dar seu palpite</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
