@@ -23,37 +23,50 @@ export default function Ranking() {
   }, []);
 
   const fetchRanking = async () => {
-    const { data } = await supabase
+    // Fetch all profiles
+    const { data: profiles } = await supabase
+      .from("profiles")
+      .select("user_id, name");
+
+    // Fetch predictions with points
+    const { data: predictions } = await supabase
       .from("predictions")
-      .select("user_id, points, profiles!inner(name)")
+      .select("user_id, points")
       .not("points", "is", null);
 
-    if (data) {
-      const grouped: Record<string, RankingEntry> = {};
-      data.forEach((p: any) => {
-        if (!grouped[p.user_id]) {
-          grouped[p.user_id] = {
-            user_id: p.user_id,
-            name: p.profiles?.name,
-            total_points: 0,
-            exact_scores: 0,
-            partial_scores: 0,
-            results_only: 0,
-          };
-        }
+    const grouped: Record<string, RankingEntry> = {};
+
+    // Initialize all profiles with zero
+    if (profiles) {
+      profiles.forEach((p: any) => {
+        grouped[p.user_id] = {
+          user_id: p.user_id,
+          name: p.name,
+          total_points: 0,
+          exact_scores: 0,
+          partial_scores: 0,
+          results_only: 0,
+        };
+      });
+    }
+
+    // Add prediction points
+    if (predictions) {
+      predictions.forEach((p: any) => {
+        if (!grouped[p.user_id]) return;
         const pts = p.points || 0;
         grouped[p.user_id].total_points += pts;
         if (pts === 5) grouped[p.user_id].exact_scores++;
         else if (pts === 3) grouped[p.user_id].partial_scores++;
         else if (pts === 1) grouped[p.user_id].results_only++;
       });
-
-      const sorted = Object.values(grouped).sort((a, b) => {
-        if (b.total_points !== a.total_points) return b.total_points - a.total_points;
-        return b.exact_scores - a.exact_scores;
-      });
-      setRanking(sorted);
     }
+
+    const sorted = Object.values(grouped).sort((a, b) => {
+      if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+      return b.exact_scores - a.exact_scores;
+    });
+    setRanking(sorted);
     setLoading(false);
   };
 
