@@ -52,8 +52,29 @@ interface MatchCardProps {
 export default function MatchCard({
   match, prediction, editScore, saving, isLoggedIn, odds, onEditChange, onSave,
 }: MatchCardProps) {
-  const locked = new Date(match.match_date) <= new Date();
   const matchDate = new Date(match.match_date);
+  const deadlineDate = new Date(matchDate.getTime() - 60 * 60 * 1000); // 1h before
+
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    if (match.status === "finished") return;
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, [match.status]);
+
+  const locked = now >= deadlineDate;
+  const totalSecsLeft = Math.max(0, differenceInSeconds(deadlineDate, now));
+
+  const formatCountdown = (secs: number) => {
+    const d = Math.floor(secs / 86400);
+    const h = Math.floor((secs % 86400) / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s.toString().padStart(2, "0")}s`;
+    return `${m}m ${s.toString().padStart(2, "0")}s`;
+  };
 
   const dayOfWeek = format(matchDate, "EEEE", { locale: ptBR });
   const dateStr = format(matchDate, "dd/MM · HH:mm", { locale: ptBR });
