@@ -1,11 +1,12 @@
 import { getFlagUrl } from "@/lib/teamFlags";
-import { format } from "date-fns";
+import { format, differenceInSeconds } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Lock, MapPin } from "lucide-react";
+import { Lock, MapPin, Clock } from "lucide-react";
+import { useState, useEffect } from "react";
 
 interface MatchTeam {
   name: string;
