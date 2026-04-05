@@ -104,6 +104,12 @@ export default function MatchCard({
           </div>
           <div className="flex items-center gap-2">
             {match.group_name && <Badge variant="outline" className="text-xs">{match.group_name}</Badge>}
+            {match.status !== "finished" && !locked && totalSecsLeft > 0 && (
+              <span className={`flex items-center gap-1 font-mono text-[11px] ${totalSecsLeft < 3600 ? "text-destructive font-semibold" : "text-muted-foreground"}`}>
+                <Clock className="h-3 w-3" />
+                {formatCountdown(totalSecsLeft)}
+              </span>
+            )}
             {locked && <Lock className="h-3 w-3" />}
           </div>
         </div>
