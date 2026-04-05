@@ -124,21 +124,21 @@ export default function MatchCard({
         {odds && (odds.home || odds.draw || odds.away) && (
           <div className="mt-3 flex items-center justify-center gap-4 text-xs text-muted-foreground">
             <span className="font-medium text-[10px] uppercase tracking-wider opacity-60">
-              {odds.bookmaker || "Odds"}
+              Probabilidade
             </span>
             {odds.home && (
               <span className="bg-muted px-2 py-0.5 rounded font-mono">
-                1: {odds.home.toFixed(2)}
+                1: {Math.round((1 / odds.home) * 100)}%
               </span>
             )}
             {odds.draw !== null && odds.draw !== undefined && (
               <span className="bg-muted px-2 py-0.5 rounded font-mono">
-                X: {odds.draw.toFixed(2)}
+                X: {Math.round((1 / odds.draw) * 100)}%
               </span>
             )}
             {odds.away && (
               <span className="bg-muted px-2 py-0.5 rounded font-mono">
-                2: {odds.away.toFixed(2)}
+                2: {Math.round((1 / odds.away) * 100)}%
               </span>
             )}
           </div>
