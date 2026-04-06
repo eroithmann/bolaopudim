@@ -6,6 +6,110 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Extended name mapping for team matching
+const nameMap: Record<string, string[]> = {
+  BRA: ["brazil", "brasil"],
+  ARG: ["argentina"],
+  URU: ["uruguay"],
+  COL: ["colombia"],
+  ECU: ["ecuador"],
+  PAR: ["paraguay"],
+  PER: ["peru"],
+  CHI: ["chile"],
+  BOL: ["bolivia"],
+  VEN: ["venezuela"],
+  MEX: ["mexico", "méxico"],
+  USA: ["united states", "usa", "us", "estados unidos"],
+  CAN: ["canada", "canadá"],
+  GER: ["germany", "deutschland", "alemania", "alemanha"],
+  FRA: ["france", "francia", "frança"],
+  ESP: ["spain", "españa", "espanha"],
+  ENG: ["england", "inglaterra"],
+  ITA: ["italy", "italia", "itália"],
+  POR: ["portugal"],
+  NED: ["netherlands", "holland", "holanda", "países baixos"],
+  BEL: ["belgium", "bélgica", "belgique"],
+  CRO: ["croatia", "croácia", "hrvatska"],
+  SRB: ["serbia", "sérvia"],
+  SUI: ["switzerland", "suíça", "schweiz"],
+  DEN: ["denmark", "dinamarca", "danmark"],
+  POL: ["poland", "polônia", "polska"],
+  AUT: ["austria", "áustria", "österreich"],
+  CZE: ["czech republic", "czechia", "república tcheca"],
+  SCO: ["scotland", "escócia"],
+  WAL: ["wales", "gales"],
+  UKR: ["ukraine", "ucrânia"],
+  SWE: ["sweden", "suécia", "sverige"],
+  NOR: ["norway", "noruega", "norge"],
+  TUR: ["turkey", "turquia", "türkiye"],
+  ROU: ["romania", "romênia"],
+  HUN: ["hungary", "hungria"],
+  GRE: ["greece", "grécia"],
+  JPN: ["japan", "japão"],
+  KOR: ["south korea", "korea republic", "coreia do sul", "korea"],
+  AUS: ["australia", "austrália"],
+  KSA: ["saudi arabia", "arábia saudita"],
+  IRN: ["iran", "irã"],
+  QAT: ["qatar", "catar"],
+  IRQ: ["iraq", "iraque"],
+  UZB: ["uzbekistan", "uzbequistão"],
+  MAR: ["morocco", "marrocos", "maroc"],
+  SEN: ["senegal"],
+  NGA: ["nigeria", "nigéria"],
+  GHA: ["ghana", "gana"],
+  CMR: ["cameroon", "camarões", "cameroun"],
+  EGY: ["egypt", "egito"],
+  TUN: ["tunisia", "tunísia", "tunisie"],
+  CIV: ["ivory coast", "cote d'ivoire", "costa do marfim"],
+  ALG: ["algeria", "argélia", "algérie"],
+  RSA: ["south africa", "áfrica do sul"],
+  CRC: ["costa rica"],
+  HON: ["honduras"],
+  PAN: ["panama", "panamá"],
+  JAM: ["jamaica"],
+  NZL: ["new zealand", "nova zelândia"],
+  IRL: ["ireland", "republic of ireland", "irlanda"],
+  ISL: ["iceland", "islândia"],
+  FIN: ["finland", "finlândia"],
+  GEO: ["georgia", "geórgia"],
+  ALB: ["albania", "albânia"],
+  BIH: ["bosnia", "bosnia and herzegovina", "bósnia"],
+  MKD: ["north macedonia", "macedônia do norte"],
+  ISR: ["israel"],
+  IDN: ["indonesia", "indonésia"],
+  CHN: ["china"],
+  IND: ["india", "índia"],
+  BHR: ["bahrain", "barein"],
+  JOR: ["jordan", "jordânia"],
+  UAE: ["united arab emirates", "emirados árabes"],
+  COD: ["dr congo", "rd congo"],
+  MLI: ["mali"],
+  BFA: ["burkina faso"],
+  GUI: ["guinea", "guiné"],
+  CPV: ["cape verde", "cabo verde"],
+  MOZ: ["mozambique", "moçambique"],
+  TAN: ["tanzania", "tanzânia"],
+  KEN: ["kenya", "quênia"],
+  ANG: ["angola"],
+  ZAM: ["zambia", "zâmbia"],
+  ZIM: ["zimbabwe", "zimbábue"],
+  NAM: ["namibia", "namíbia"],
+  BEN: ["benin", "benim"],
+  TOG: ["togo"],
+  GAB: ["gabon", "gabão"],
+  EQG: ["equatorial guinea", "guiné equatorial"],
+};
+
+function findTeamCode(apiTeamName: string): string | null {
+  const normalized = apiTeamName.toLowerCase().trim();
+  for (const [code, names] of Object.entries(nameMap)) {
+    if (names.some(n => normalized === n || normalized.includes(n) || n.includes(normalized))) {
+      return code;
+    }
+  }
+  return null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -13,9 +117,7 @@ serve(async (req) => {
 
   try {
     const ODDS_API_KEY = Deno.env.get("ODDS_API_KEY");
-    
     if (!ODDS_API_KEY) {
-      // No odds API key configured, return empty
       return new Response(JSON.stringify({ odds: {} }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -25,7 +127,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch upcoming/scheduled matches with team info
+    // Fetch scheduled matches
     const { data: matches } = await supabase
       .from("matches")
       .select("id, match_date, status, home_team:teams!matches_home_team_id_fkey(name, code), away_team:teams!matches_away_team_id_fkey(name, code)")
@@ -39,80 +141,52 @@ serve(async (req) => {
       });
     }
 
-    // Fetch odds from The Odds API for FIFA World Cup
-    // Sport key for FIFA World Cup 2026
-    const sportKey = "soccer_fifa_world_cup";
-    const oddsUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=eu&markets=h2h&oddsFormat=decimal`;
+    // Step 1: Discover available sports containing "fifa" or "world cup"
+    const sportsUrl = `https://api.the-odds-api.com/v4/sports/?apiKey=${ODDS_API_KEY}`;
+    const sportsRes = await fetch(sportsUrl);
+    let sportKeys: string[] = ["soccer_fifa_world_cup"];
 
-    const oddsResponse = await fetch(oddsUrl);
-    
-    if (!oddsResponse.ok) {
-      console.error("Odds API error:", oddsResponse.status, await oddsResponse.text());
-      return new Response(JSON.stringify({ odds: {} }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+    if (sportsRes.ok) {
+      const sportsData = await sportsRes.json();
+      const relevantSports = sportsData.filter((s: any) => {
+        const title = (s.title || "").toLowerCase();
+        const key = (s.key || "").toLowerCase();
+        return (
+          key.includes("fifa") || key.includes("world_cup") ||
+          title.includes("fifa") || title.includes("world cup") ||
+          key.includes("soccer_international")
+        );
       });
-    }
-
-    const oddsData = await oddsResponse.json();
-
-    // Map team names to normalize for matching
-    const nameMap: Record<string, string[]> = {
-      BRA: ["brazil", "brasil"],
-      ARG: ["argentina"],
-      URU: ["uruguay"],
-      COL: ["colombia"],
-      ECU: ["ecuador"],
-      PAR: ["paraguay"],
-      PER: ["peru"],
-      CHI: ["chile"],
-      BOL: ["bolivia"],
-      VEN: ["venezuela"],
-      MEX: ["mexico"],
-      USA: ["united states", "usa", "us"],
-      CAN: ["canada"],
-      GER: ["germany"],
-      FRA: ["france"],
-      ESP: ["spain"],
-      ENG: ["england"],
-      ITA: ["italy"],
-      POR: ["portugal"],
-      NED: ["netherlands", "holland"],
-      BEL: ["belgium"],
-      CRO: ["croatia"],
-      SRB: ["serbia"],
-      SUI: ["switzerland"],
-      DEN: ["denmark"],
-      POL: ["poland"],
-      JPN: ["japan"],
-      KOR: ["south korea", "korea republic"],
-      AUS: ["australia"],
-      MAR: ["morocco"],
-      SEN: ["senegal"],
-      NGA: ["nigeria"],
-      GHA: ["ghana"],
-      CMR: ["cameroon"],
-      EGY: ["egypt"],
-      TUN: ["tunisia"],
-      IRN: ["iran"],
-      KSA: ["saudi arabia"],
-      QAT: ["qatar"],
-    };
-
-    function normalizeTeamName(name: string): string {
-      return name.toLowerCase().trim();
-    }
-
-    function findTeamCode(apiTeamName: string): string | null {
-      const normalized = normalizeTeamName(apiTeamName);
-      for (const [code, names] of Object.entries(nameMap)) {
-        if (names.some(n => normalized.includes(n) || n.includes(normalized))) {
-          return code;
-        }
+      if (relevantSports.length > 0) {
+        sportKeys = relevantSports.map((s: any) => s.key);
       }
-      return null;
+      console.log("Available relevant sport keys:", sportKeys);
+    } else {
+      await sportsRes.text(); // consume body
     }
 
-    // Build odds map by match_id
+    // Step 2: Fetch odds from all relevant sport keys
+    const allOddsEvents: any[] = [];
+    for (const sportKey of sportKeys) {
+      try {
+        const oddsUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=eu,us,uk&markets=h2h&oddsFormat=decimal`;
+        const oddsRes = await fetch(oddsUrl);
+        if (oddsRes.ok) {
+          const data = await oddsRes.json();
+          console.log(`Sport key ${sportKey}: ${data.length} events found`);
+          allOddsEvents.push(...data);
+        } else {
+          const errText = await oddsRes.text();
+          console.log(`Sport key ${sportKey}: ${oddsRes.status} - ${errText}`);
+        }
+      } catch (e) {
+        console.error(`Error fetching odds for ${sportKey}:`, e);
+      }
+    }
+
+    console.log(`Total odds events collected: ${allOddsEvents.length}`);
+
+    // Step 3: Match odds to our matches
     const oddsMap: Record<string, { home: number | null; draw: number | null; away: number | null; bookmaker: string }> = {};
 
     for (const match of matches) {
@@ -123,8 +197,7 @@ serve(async (req) => {
       const homeCode = homeTeam.code;
       const awayCode = awayTeam.code;
 
-      // Find matching odds event
-      for (const event of oddsData) {
+      for (const event of allOddsEvents) {
         const apiHomeCode = findTeamCode(event.home_team);
         const apiAwayCode = findTeamCode(event.away_team);
 
@@ -132,7 +205,6 @@ serve(async (req) => {
           (apiHomeCode === homeCode && apiAwayCode === awayCode) ||
           (apiHomeCode === awayCode && apiAwayCode === homeCode)
         ) {
-          // Get first bookmaker's odds
           const bookmaker = event.bookmakers?.[0];
           if (bookmaker) {
             const h2hMarket = bookmaker.markets?.find((m: any) => m.key === "h2h");
@@ -148,6 +220,7 @@ serve(async (req) => {
                 away: awayOdds?.price || null,
                 bookmaker: bookmaker.title,
               };
+              console.log(`Matched odds for ${homeTeam.name} vs ${awayTeam.name} from ${bookmaker.title}`);
             }
           }
           break;
@@ -155,10 +228,11 @@ serve(async (req) => {
       }
     }
 
+    console.log(`Odds matched for ${Object.keys(oddsMap).length} out of ${matches.length} matches`);
+
     return new Response(JSON.stringify({ odds: oddsMap }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-
   } catch (error) {
     console.error("Error fetching odds:", error);
     return new Response(JSON.stringify({ odds: {} }), {

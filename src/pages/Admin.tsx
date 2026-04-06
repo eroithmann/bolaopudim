@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, RefreshCw, Save, Check } from "lucide-react";
+import { Shield, RefreshCw, Save, Check, Download } from "lucide-react";
 
 interface MatchRow {
   id: string;
@@ -33,6 +33,7 @@ export default function Admin() {
   const [editResults, setEditResults] = useState<Record<string, { home: string; away: string }>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [syncing, setSyncing] = useState(false);
+  const [seedingMatches, setSeedingMatches] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
@@ -87,6 +88,26 @@ export default function Admin() {
     setSyncing(false);
   };
 
+  const seedMatchesFromApi = async () => {
+    setSeedingMatches(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-matches-from-api");
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Aviso", description: data.error, variant: "destructive" });
+      } else {
+        toast({
+          title: "Jogos atualizados!",
+          description: `${data?.matches_created || 0} criados, ${data?.matches_updated || 0} atualizados, ${data?.matches_removed || 0} removidos. Times: ${data?.teams_created || 0} novos.`,
+        });
+        fetchMatches();
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar jogos", description: err.message || "Verifique a API key", variant: "destructive" });
+    }
+    setSeedingMatches(false);
+  };
+
   if (loading) return <Layout><div className="p-8 text-center">Carregando...</div></Layout>;
 
   const pastMatches = matches.filter((m) => new Date(m.match_date) <= new Date());
@@ -99,10 +120,16 @@ export default function Admin() {
             <Shield className="h-8 w-8 text-primary" />
             PAINEL ADMIN
           </h1>
-          <Button onClick={syncFromApi} disabled={syncing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando..." : "Buscar da API"}
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={seedMatchesFromApi} disabled={seedingMatches} variant="outline">
+              <Download className={`h-4 w-4 mr-2 ${seedingMatches ? "animate-spin" : ""}`} />
+              {seedingMatches ? "Importando..." : "Importar Jogos da API"}
+            </Button>
+            <Button onClick={syncFromApi} disabled={syncing} variant="outline">
+              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando..." : "Buscar Resultados"}
+            </Button>
+          </div>
         </div>
 
         <Card>
