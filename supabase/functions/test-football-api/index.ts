@@ -12,30 +12,38 @@ serve(async (req) => {
 
   try {
     const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY");
-    if (!RAPIDAPI_KEY) {
-      return new Response(JSON.stringify({ error: "RAPIDAPI_KEY not set" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const baseUrl = "https://free-api-live-football-data.p.rapidapi.com";
     const headers = {
-      "x-rapidapi-key": RAPIDAPI_KEY,
+      "x-rapidapi-key": RAPIDAPI_KEY!,
       "x-rapidapi-host": "free-api-live-football-data.p.rapidapi.com",
       "Content-Type": "application/json",
     };
 
-    // Try multiple endpoint patterns to discover the API structure
+    // Step 1: Get all leagues to find World Cup ID
+    const leaguesRes = await fetch(`${baseUrl}/football-get-all-leagues`, { headers });
+    const leaguesData = await leaguesRes.json();
+    const allLeagues = leaguesData?.response?.leagues || [];
+    
+    // Find World Cup related leagues
+    const worldCupLeagues = allLeagues.filter((l: any) => {
+      const name = (l.name || "").toLowerCase();
+      return name.includes("world cup") || name.includes("copa do mundo") || name.includes("fifa");
+    });
+
+    // Step 2: Try various fixture endpoints
     const endpoints = [
-      "/football-get-all-leagues",
-      "/football-get-fixtures-by-league?leagueid=1&season=2026",
-      "/football-get-fixtures-by-league?leagueid=1&season=2025-2026",
-      "/football-current-live",
-      "/football-get-all-events-by-league?leagueid=1",
-      "/football-get-fixtures-all?leagueid=1",
+      "/football-get-matches-by-league?leagueid=77&season=2025/2026",
+      "/football-get-matches-by-league?leagueid=77",
+      "/football-league-matches?leagueid=77",
+      "/football-get-league-matches?leagueid=77",
+      "/football-league-season-matches?leagueid=77",
+      "/football-get-league-season?leagueid=77",
+      "/football-league-season?leagueid=77",
+      "/football-get-league-details?leagueid=77",
+      "/football-league-details?leagueid=77",
     ];
 
-    const results: any = {};
+    const results: any = { worldCupLeagues };
 
     for (const endpoint of endpoints) {
       try {
@@ -43,9 +51,7 @@ serve(async (req) => {
         const data = await res.json();
         results[endpoint] = {
           status: res.status,
-          // Only include first few items or error info
-          data_keys: data ? Object.keys(data) : null,
-          sample: JSON.stringify(data).substring(0, 500),
+          sample: JSON.stringify(data).substring(0, 800),
         };
       } catch (e) {
         results[endpoint] = { error: e.message };
