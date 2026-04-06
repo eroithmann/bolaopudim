@@ -19,31 +19,24 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // Step 1: Get all leagues to find World Cup ID
-    const leaguesRes = await fetch(`${baseUrl}/football-get-all-leagues`, { headers });
-    const leaguesData = await leaguesRes.json();
-    const allLeagues = leaguesData?.response?.leagues || [];
-    
-    // Find World Cup related leagues
-    const worldCupLeagues = allLeagues.filter((l: any) => {
-      const name = (l.name || "").toLowerCase();
-      return name.includes("world cup") || name.includes("copa do mundo") || name.includes("fifa");
-    });
-
-    // Step 2: Try various fixture endpoints
+    // Try more endpoint patterns - World Cup league id = 77
     const endpoints = [
-      "/football-get-matches-by-league?leagueid=77&season=2025/2026",
-      "/football-get-matches-by-league?leagueid=77",
-      "/football-league-matches?leagueid=77",
-      "/football-get-league-matches?leagueid=77",
-      "/football-league-season-matches?leagueid=77",
-      "/football-get-league-season?leagueid=77",
-      "/football-league-season?leagueid=77",
-      "/football-get-league-details?leagueid=77",
-      "/football-league-details?leagueid=77",
+      "/football-league-list-by-country?ccode=INT",
+      "/football-get-all-matches-by-league?leagueid=77",
+      "/football-get-matches?leagueid=77",
+      "/football-matches-by-league?leagueid=77&season=2025/2026",
+      "/football-league-info?leagueid=77",
+      "/football-get-league?leagueid=77",
+      "/football-league?leagueid=77",
+      "/football-league-table?leagueid=77",
+      "/football-league-overview?leagueid=77",
+      "/football-get-league-season-fixture?leagueid=77",
+      "/football-get-league-fixture?leagueid=77",
+      "/football-get-all-fixtures?leagueid=77",
+      "/football-get-season-fixtures?leagueid=77",
     ];
 
-    const results: any = { worldCupLeagues };
+    const results: any = {};
 
     for (const endpoint of endpoints) {
       try {
@@ -51,8 +44,12 @@ serve(async (req) => {
         const data = await res.json();
         results[endpoint] = {
           status: res.status,
-          sample: JSON.stringify(data).substring(0, 800),
+          sample: JSON.stringify(data).substring(0, 600),
         };
+        // Stop early if we find a working one
+        if (res.status === 200 && !data.message?.includes("does not exist")) {
+          results[endpoint].note = "FOUND WORKING ENDPOINT!";
+        }
       } catch (e) {
         results[endpoint] = { error: e.message };
       }
