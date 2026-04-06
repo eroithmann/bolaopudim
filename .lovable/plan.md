@@ -1,60 +1,54 @@
 
-# Bolão Copa do Mundo 2026 — Plano Atualizado
 
-## Mudança Principal
-Resultados dos jogos serão puxados automaticamente via API de futebol, com fallback manual pelo admin.
+# Corrigir Jogos e Probabilidades
 
-## Arquitetura
+## Diagnóstico
 
-### Backend (Supabase + Edge Function)
-- **Edge Function `fetch-match-results`**: Consulta a API-Football (via RapidAPI) periodicamente ou sob demanda para buscar resultados dos jogos da Copa 2026
-- **Fallback manual**: Painel admin mantido para inserir/corrigir resultados caso a API falhe ou demore
-- **Cron ou botão**: Admin pode disparar atualização manual, ou configurar execução periódica
+### Jogos incorretos
+Os jogos atuais (EUA x México, Argentina x Uruguai no mesmo grupo, etc.) foram inseridos manualmente como placeholders fictícios. Precisam ser substituídos pelos jogos reais da Copa 2026. A melhor abordagem: usar a **API-Football** (já configurada com RAPIDAPI_KEY) para buscar os fixtures oficiais e popular o banco automaticamente.
 
-### API de Futebol
-- Usaremos a **API-Football** (api-football.com) via RapidAPI — tier gratuito com 100 req/dia, suficiente para um bolão
-- Endpoint principal: `GET /fixtures?league=1&season=2026` (Copa do Mundo FIFA)
-- Retorna placares, status do jogo, times, etc.
-- Você precisará criar uma conta gratuita no RapidAPI e fornecer a API key
+### Odds/probabilidades não aparecem
+A edge function `fetch-odds` usa o sport key `soccer_fifa_world_cup`, que pode não ter mercados publicados na Odds API ainda. Sites como Betano já têm odds, mas usam APIs próprias. Solução híbrida: tentar múltiplos sport keys na Odds API + adicionar fallback.
 
-### Fluxo de Atualização
-1. Edge Function consulta API-Football para jogos finalizados
-2. Atualiza a tabela `matches` com os placares reais
-3. Trigger/função recalcula pontos de todos os apostadores
-4. Admin pode forçar atualização ou corrigir manualmente
+---
 
-## Tabelas (Supabase)
+## Plano de Implementação
 
-- **profiles** — id, user_id, name, avatar_url
-- **user_roles** — id, user_id, role (enum: admin, user)
-- **matches** — id, phase, group, home_team, away_team, match_date, home_score, away_score, status (scheduled/finished), api_fixture_id, result_source (api/manual)
-- **predictions** — id, user_id, match_id, home_score, away_score, points, created_at
-- **teams** — id, name, code, flag_url, group
+### 1. Edge function `seed-matches-from-api` (nova)
+- Consulta `GET /fixtures?league=1&season=2026` na API-Football
+- Para cada fixture retornado:
+  - Encontra os times pelo nome (matching com tabela `teams`)
+  - Se o time não existe, cria na tabela `teams`
+  - Insere/atualiza o match com data, venue, grupo, fase, `api_fixture_id`
+- Deleta matches antigos que não existem nos fixtures da API
+- Retorna resumo (criados, atualizados, removidos)
 
-## Pontuação (recalculada ao salvar resultado)
-- 5 pts: placar exato
-- 3 pts: acertou placar de um time
-- 1 pt: acertou resultado (vitória/empate)
-- 0 pts: errou
+### 2. Corrigir tabela `teams`
+- Os times e grupos atuais podem estar incorretos
+- A função vai atualizar os grupos dos times com base nos dados da API
+- Mapeamento de nomes da API para códigos existentes (ex: "Brazil" → BRA)
 
-## Páginas
-1. **Home** — próximos jogos + ranking resumido
-2. **Jogos** — lista por fase, campo de palpite (trava após início)
-3. **Ranking** — classificação geral com filtro por fase
-4. **Perfil** — palpites e desempenho do usuário
-5. **Admin** — atualizar resultados (botão "Buscar da API" + edição manual), gerenciar jogos
+### 3. Melhorar edge function `fetch-odds`
+- Tentar múltiplos sport keys: `soccer_fifa_world_cup`, `soccer_fifa_world_cup_winner`, `soccer_international_friendlies`
+- Listar os sports disponíveis primeiro (`/v4/sports`) e filtrar os que contêm "fifa" ou "world cup"
+- Melhorar matching de times (adicionar mais aliases)
+- Logar quais jogos encontraram odds e quais não, para debug
 
-## Passos de Implementação
+### 4. Painel Admin — Botão "Atualizar Jogos da API"
+- Adicionar botão no Admin que chama `seed-matches-from-api`
+- Mostra quantos jogos foram criados/atualizados/removidos
+- Separado do botão existente "Buscar da API" (que busca resultados/placares)
 
-1. Configurar Supabase (Lovable Cloud) com tabelas, RLS e triggers
-2. Criar autenticação (email/senha) + perfil + roles
-3. Seed dos times e jogos da fase de grupos
-4. Criar páginas de jogos e sistema de palpites
-5. Criar ranking com cálculo de pontos
-6. Criar Edge Function para buscar resultados da API-Football
-7. Criar painel admin com botão de sync + edição manual
-8. Design responsivo com tema verde/dourado
+### 5. Proteção de dados existentes
+- Predictions existentes são vinculadas por `match_id` — ao deletar matches antigos, predictions também são removidas (CASCADE)
+- Como os jogos atuais são fictícios e provavelmente não há palpites reais relevantes, isso é aceitável
 
-## Requisito do Usuário
-- Você precisará criar uma conta gratuita em [RapidAPI](https://rapidapi.com) e assinar o plano gratuito da API-Football
-- Depois, fornecer a API key para armazenarmos como secret no projeto
+---
+
+## Detalhes técnicos
+
+- **API-Football endpoint**: `GET /fixtures?league=1&season=2026` retorna todos os jogos com times, datas, venues, status
+- **Odds API discovery**: `GET /v4/sports/?apiKey=...` lista todos os esportes disponíveis — usaremos isso para encontrar o key correto da Copa 2026
+- **Matching de times**: Expandir o `nameMap` com mais variações (ex: "Brasil" / "Brazil", "Coreia do Sul" / "South Korea" / "Korea Republic")
+- Migration não é necessária — schema já está correto, apenas dados precisam mudar
+
