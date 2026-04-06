@@ -120,10 +120,16 @@ export default function Admin() {
             <Shield className="h-8 w-8 text-primary" />
             PAINEL ADMIN
           </h1>
-          <Button onClick={syncFromApi} disabled={syncing} variant="outline">
-            <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando..." : "Buscar da API"}
-          </Button>
+          <div className="flex gap-2 flex-wrap">
+            <Button onClick={seedMatchesFromApi} disabled={seedingMatches} variant="outline">
+              <Download className={`h-4 w-4 mr-2 ${seedingMatches ? "animate-spin" : ""}`} />
+              {seedingMatches ? "Importando..." : "Importar Jogos da API"}
+            </Button>
+            <Button onClick={syncFromApi} disabled={syncing} variant="outline">
+              <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
+              {syncing ? "Sincronizando..." : "Buscar Resultados"}
+            </Button>
+          </div>
         </div>
 
         <Card>
