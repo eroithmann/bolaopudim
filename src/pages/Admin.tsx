@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, RefreshCw, Save, Check } from "lucide-react";
+import { Shield, RefreshCw, Save, Check, Download } from "lucide-react";
 
 interface MatchRow {
   id: string;
@@ -86,6 +86,26 @@ export default function Admin() {
       toast({ title: "Erro na sincronização", description: err.message || "Verifique a API key", variant: "destructive" });
     }
     setSyncing(false);
+  };
+
+  const seedMatchesFromApi = async () => {
+    setSeedingMatches(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-matches-from-api");
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Aviso", description: data.error, variant: "destructive" });
+      } else {
+        toast({
+          title: "Jogos atualizados!",
+          description: `${data?.matches_created || 0} criados, ${data?.matches_updated || 0} atualizados, ${data?.matches_removed || 0} removidos. Times: ${data?.teams_created || 0} novos.`,
+        });
+        fetchMatches();
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar jogos", description: err.message || "Verifique a API key", variant: "destructive" });
+    }
+    setSeedingMatches(false);
   };
 
   if (loading) return <Layout><div className="p-8 text-center">Carregando...</div></Layout>;
