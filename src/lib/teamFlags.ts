@@ -3,7 +3,7 @@ export function getFlagUrl(code: string): string {
   const map: Record<string, string> = {
     BRA: "br", ARG: "ar", URU: "uy", COL: "co", ECU: "ec", PAR: "py",
     PER: "pe", CHI: "cl", BOL: "bo", VEN: "ve", MEX: "mx", USA: "us",
-    CAN: "ca", CRC: "cr", PAN: "pa", HON: "hn", SLV: "sv", JAM: "jm",
+    CAN: "ca", CRC: "cr", PAN: "pa", HON: "hn", SLV: "sv", JAM: "jm", HAI: "ht", CUR: "cw",
     GER: "de", FRA: "fr", ESP: "es", ENG: "gb-eng", ITA: "it", POR: "pt",
     NED: "nl", BEL: "be", CRO: "hr", SRB: "rs", SUI: "ch", DEN: "dk",
     POL: "pl", AUT: "at", WAL: "gb-wls", SCO: "gb-sct", CZE: "cz",
