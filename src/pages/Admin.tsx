@@ -33,6 +33,7 @@ export default function Admin() {
   const [editResults, setEditResults] = useState<Record<string, { home: string; away: string }>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [syncing, setSyncing] = useState(false);
+  const [seedingMatches, setSeedingMatches] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
