@@ -19,21 +19,17 @@ serve(async (req) => {
       "Content-Type": "application/json",
     };
 
-    // Try more endpoint patterns - World Cup league id = 77
+    // Try different season/parameter combos for World Cup (id=77)
     const endpoints = [
-      "/football-league-list-by-country?ccode=INT",
-      "/football-get-all-matches-by-league?leagueid=77",
-      "/football-get-matches?leagueid=77",
-      "/football-matches-by-league?leagueid=77&season=2025/2026",
-      "/football-league-info?leagueid=77",
-      "/football-get-league?leagueid=77",
-      "/football-league?leagueid=77",
-      "/football-league-table?leagueid=77",
-      "/football-league-overview?leagueid=77",
-      "/football-get-league-season-fixture?leagueid=77",
-      "/football-get-league-fixture?leagueid=77",
-      "/football-get-all-fixtures?leagueid=77",
-      "/football-get-season-fixtures?leagueid=77",
+      "/football-get-all-matches-by-league?leagueid=77&season=2026",
+      "/football-get-all-matches-by-league?leagueid=77&season=2025/2026",
+      "/football-get-all-matches-by-league?leagueid=77&season=2025-2026",
+      // Try Premier League to see if endpoint works at all with matches
+      "/football-get-all-matches-by-league?leagueid=47",
+      // Also try a match details endpoint
+      "/football-match-details?matchid=4803343",
+      "/football-get-match-details?matchid=4803343",
+      "/football-get-match?matchid=4803343",
     ];
 
     const results: any = {};
@@ -44,12 +40,8 @@ serve(async (req) => {
         const data = await res.json();
         results[endpoint] = {
           status: res.status,
-          sample: JSON.stringify(data).substring(0, 600),
+          sample: JSON.stringify(data).substring(0, 1000),
         };
-        // Stop early if we find a working one
-        if (res.status === 200 && !data.message?.includes("does not exist")) {
-          results[endpoint].note = "FOUND WORKING ENDPOINT!";
-        }
       } catch (e) {
         results[endpoint] = { error: e.message };
       }
