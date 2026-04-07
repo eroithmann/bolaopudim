@@ -53,7 +53,7 @@ export default function MatchCard({
   match, prediction, editScore, saving, isLoggedIn, odds, onEditChange, onSave,
 }: MatchCardProps) {
   const matchDate = new Date(match.match_date);
-  const deadlineDate = new Date(matchDate.getTime() - 60 * 60 * 1000); // 1h before
+  const deadlineDate = new Date(matchDate.getTime() - 30 * 60 * 1000); // 30min before
 
   const [now, setNow] = useState(new Date());
 
