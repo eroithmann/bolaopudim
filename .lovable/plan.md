@@ -1,54 +1,51 @@
 
 
-# Corrigir Jogos e Probabilidades
+# Proteger jogos manuais + Teste com Champions League
 
-## Diagnóstico
+## Problema identificado
 
-### Jogos incorretos
-Os jogos atuais (EUA x México, Argentina x Uruguai no mesmo grupo, etc.) foram inseridos manualmente como placeholders fictícios. Precisam ser substituídos pelos jogos reais da Copa 2026. A melhor abordagem: usar a **API-Football** (já configurada com RAPIDAPI_KEY) para buscar os fixtures oficiais e popular o banco automaticamente.
+A edge function `seed-matches-from-api` na **linha 171** faz `DELETE` de **todos** os matches antes de reinserir os da Copa. Isso apagou o jogo Goiás x Criciúma e qualquer palpite associado.
 
-### Odds/probabilidades não aparecem
-A edge function `fetch-odds` usa o sport key `soccer_fifa_world_cup`, que pode não ter mercados publicados na Odds API ainda. Sites como Betano já têm odds, mas usam APIs próprias. Solução híbrida: tentar múltiplos sport keys na Odds API + adicionar fallback.
+## Plano
 
----
+### 1. Proteger jogos manuais na função seed
 
-## Plano de Implementação
+Alterar `seed-matches-from-api/index.ts` para deletar apenas jogos que pertencem à fase de grupos da Copa (phase = 'groups' com group_name começando por "Grupo"), preservando jogos com `group_name = 'Teste'` ou qualquer outro grupo customizado.
 
-### 1. Edge function `seed-matches-from-api` (nova)
-- Consulta `GET /fixtures?league=1&season=2026` na API-Football
-- Para cada fixture retornado:
-  - Encontra os times pelo nome (matching com tabela `teams`)
-  - Se o time não existe, cria na tabela `teams`
-  - Insere/atualiza o match com data, venue, grupo, fase, `api_fixture_id`
-- Deleta matches antigos que não existem nos fixtures da API
-- Retorna resumo (criados, atualizados, removidos)
+Trocar a linha:
+```
+DELETE ... neq("id", "00000000...")
+```
+Por:
+```
+DELETE ... like("group_name", "Grupo %").eq("phase", "groups")
+```
 
-### 2. Corrigir tabela `teams`
-- Os times e grupos atuais podem estar incorretos
-- A função vai atualizar os grupos dos times com base nos dados da API
-- Mapeamento de nomes da API para códigos existentes (ex: "Brazil" → BRA)
+Isso garante que jogos de teste ou de outras competições nunca sejam apagados pela importação da Copa.
 
-### 3. Melhorar edge function `fetch-odds`
-- Tentar múltiplos sport keys: `soccer_fifa_world_cup`, `soccer_fifa_world_cup_winner`, `soccer_international_friendlies`
-- Listar os sports disponíveis primeiro (`/v4/sports`) e filtrar os que contêm "fifa" ou "world cup"
-- Melhorar matching de times (adicionar mais aliases)
-- Logar quais jogos encontraram odds e quais não, para debug
+### 2. Adicionar jogos da Champions League de hoje como teste
 
-### 4. Painel Admin — Botão "Atualizar Jogos da API"
-- Adicionar botão no Admin que chama `seed-matches-from-api`
-- Mostra quantos jogos foram criados/atualizados/removidos
-- Separado do botão existente "Buscar da API" (que busca resultados/placares)
+Inserir via SQL (usando insert tool) os times e jogos das quartas de final da Champions de hoje (08/04/2026). Os jogos de hoje são:
+- **Barcelona x Dortmund** (16h BRT)  
+- **Inter x Bayern** (16h BRT)
 
-### 5. Proteção de dados existentes
-- Predictions existentes são vinculadas por `match_id` — ao deletar matches antigos, predictions também são removidas (CASCADE)
-- Como os jogos atuais são fictícios e provavelmente não há palpites reais relevantes, isso é aceitável
+Criar os times (BAR, DOR, INT, BAY) se não existirem, e os matches com `group_name = 'Champions League'` e `phase = 'test'` para distinguir dos jogos da Copa.
+
+### 3. Atualizar `fetch-match-results` para suportar Champions
+
+A função atual busca resultados apenas da `league=1&season=2026` (Copa do Mundo). Adicionar suporte para buscar resultados da Champions League (`league=2&season=2025`) para os jogos marcados como Champions.
+
+Alternativa mais simples: como é teste, manter o fluxo manual pelo Admin — inserir o resultado manualmente depois do jogo para validar o cálculo de pontos e ranking.
+
+### 4. Adicionar bandeiras dos times da Champions no `teamFlags.ts`
+
+Adicionar códigos de clubes: BAR (bandeira da Espanha como fallback), DOR (Alemanha), INT (Itália), BAY (Alemanha). Ou usar logos genéricos.
 
 ---
 
 ## Detalhes técnicos
 
-- **API-Football endpoint**: `GET /fixtures?league=1&season=2026` retorna todos os jogos com times, datas, venues, status
-- **Odds API discovery**: `GET /v4/sports/?apiKey=...` lista todos os esportes disponíveis — usaremos isso para encontrar o key correto da Copa 2026
-- **Matching de times**: Expandir o `nameMap` com mais variações (ex: "Brasil" / "Brazil", "Coreia do Sul" / "South Korea" / "Korea Republic")
-- Migration não é necessária — schema já está correto, apenas dados precisam mudar
+- A proteção no seed é a mudança mais crítica — evita perda de dados na Copa
+- Os jogos da Champions terão `phase: 'test'` para fácil limpeza posterior
+- O `recalculate_match_points` trigger já funciona para qualquer match — basta salvar o resultado pelo Admin
 
