@@ -36,6 +36,7 @@ interface OddsData {
 
 const PHASES = [
   { value: "groups", label: "Grupos" },
+  { value: "test", label: "Teste" },
   { value: "round_of_32", label: "32 avos" },
   { value: "round_of_16", label: "Oitavas" },
   { value: "quarter_finals", label: "Quartas" },
