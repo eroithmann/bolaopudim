@@ -20,6 +20,25 @@ interface MatchWithTeams {
   away_team: { name: string; code: string } | null;
 }
 
+interface MatchRow {
+  id: string;
+  phase: string;
+  group_name: string | null;
+  match_date: string;
+  venue: string | null;
+  status: string;
+  home_score: number | null;
+  away_score: number | null;
+  home_team_id: string | null;
+  away_team_id: string | null;
+}
+
+interface TeamRow {
+  id: string;
+  name: string;
+  code: string;
+}
+
 interface Prediction {
   match_id: string;
   home_score: number;
@@ -63,11 +82,41 @@ export default function Games() {
   }, [matches]);
 
   const fetchMatches = async () => {
-    const { data } = await supabase
-      .from("matches")
-      .select("id, phase, group_name, match_date, venue, status, home_score, away_score, home_team:teams!matches_home_team_id_fkey(name, code), away_team:teams!matches_away_team_id_fkey(name, code)")
-      .order("match_date", { ascending: true });
-    if (data) setMatches(data as unknown as MatchWithTeams[]);
+    const [{ data: matchesData, error: matchesError }, { data: teamsData, error: teamsError }] = await Promise.all([
+      supabase
+        .from("matches")
+        .select("id, phase, group_name, match_date, venue, status, home_score, away_score, home_team_id, away_team_id")
+        .order("match_date", { ascending: true }),
+      supabase
+        .from("teams")
+        .select("id, name, code"),
+    ]);
+
+    if (matchesError || teamsError) {
+      toast({
+        title: "Erro ao carregar jogos",
+        description: matchesError?.message || teamsError?.message || "Tente novamente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const teamsById = new Map((teamsData as TeamRow[] | null)?.map((team) => [team.id, team]));
+
+    const mappedMatches = ((matchesData as MatchRow[] | null) ?? []).map((match) => ({
+      id: match.id,
+      phase: match.phase,
+      group_name: match.group_name,
+      match_date: match.match_date,
+      venue: match.venue,
+      status: match.status,
+      home_score: match.home_score,
+      away_score: match.away_score,
+      home_team: match.home_team_id ? teamsById.get(match.home_team_id) ?? null : null,
+      away_team: match.away_team_id ? teamsById.get(match.away_team_id) ?? null : null,
+    }));
+
+    setMatches(mappedMatches);
   };
 
   const fetchPredictions = async () => {
