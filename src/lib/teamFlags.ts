@@ -21,6 +21,7 @@ export function getFlagUrl(code: string): string {
     NZL: "nz",
     // Club teams (using country flags as fallback)
     BAR: "es", DOR: "de", INT: "it", BAY: "de",
+    SPO: "pt", ARS: "gb-eng", RMA: "es",
   };
   const iso = map[code.toUpperCase()] || code.toLowerCase();
   return `https://flagcdn.com/w80/${iso}.png`;
