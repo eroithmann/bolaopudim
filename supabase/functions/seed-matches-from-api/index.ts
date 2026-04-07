@@ -167,8 +167,8 @@ serve(async (req) => {
       }
     }
 
-    // Delete all existing matches
-    const { data: deleted } = await supabase.from("matches").delete().neq("id", "00000000-0000-0000-0000-000000000000").select("id");
+    // Delete only World Cup group stage matches (preserve test/manual matches)
+    const { data: deleted } = await supabase.from("matches").delete().eq("phase", "groups").like("group_name", "Grupo %").select("id");
     const matchesDeleted = deleted?.length || 0;
 
     // Build all match rows

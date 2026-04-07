@@ -19,6 +19,8 @@ export function getFlagUrl(code: string): string {
     GUI: "gn", BFA: "bf", GAB: "ga", MOZ: "mz", CPV: "cv", MAD: "mg",
     UGA: "ug", KEN: "ke", TAN: "tz", ZAM: "zm", ZIM: "zw", ANG: "ao",
     NZL: "nz",
+    // Club teams (using country flags as fallback)
+    BAR: "es", DOR: "de", INT: "it", BAY: "de",
   };
   const iso = map[code.toUpperCase()] || code.toLowerCase();
   return `https://flagcdn.com/w80/${iso}.png`;
