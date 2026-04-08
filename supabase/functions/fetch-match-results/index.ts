@@ -71,6 +71,33 @@ function matchesTeamName(dbName: string, apiName: string): boolean {
   return false;
 }
 
+async function fetchFromApi(footballToken: string, dateFrom: string, dateTo: string, extraParams = ""): Promise<any[]> {
+  const baseUrl = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
+  const url = extraParams ? `${baseUrl}&${extraParams}` : baseUrl;
+  console.log(`Fetching: ${url}`);
+
+  const res = await fetch(url, {
+    headers: { "X-Auth-Token": footballToken },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`API error ${res.status}: ${body}`);
+    return [];
+  }
+
+  const data = await res.json();
+  const matches = data.matches || [];
+  console.log(`API returned ${matches.length} matches for params: ${extraParams || "(no filter)"}`);
+  
+  // Log first few matches for debugging
+  for (const m of matches.slice(0, 5)) {
+    console.log(`  - ${m.homeTeam?.name} vs ${m.awayTeam?.name} | status: ${m.status} | score: ${m.score?.fullTime?.home}-${m.score?.fullTime?.away}`);
+  }
+
+  return matches;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -108,32 +135,38 @@ serve(async (req) => {
     }
 
     console.log(`Found ${pendingMatches.length} pending matches`);
+    for (const m of pendingMatches) {
+      const ht = (m as any).home_team;
+      const at = (m as any).away_team;
+      console.log(`  DB match: ${ht?.name} vs ${at?.name} | date: ${m.match_date} | status: ${m.status}`);
+    }
 
     // Get date range
     const matchDates = pendingMatches.map(m => m.match_date.split("T")[0]);
     const dateFrom = matchDates.reduce((a, b) => a < b ? a : b);
     const dateTo = matchDates.reduce((a, b) => a > b ? a : b);
 
-    // Fetch from football-data.org
-    const apiUrl = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}&status=FINISHED`;
-    console.log(`Fetching: ${apiUrl}`);
+    // Strategy: try with FINISHED filter first, then without, then with competition filters
+    let apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo, "status=FINISHED");
 
-    const res = await fetch(apiUrl, {
-      headers: { "X-Auth-Token": footballToken },
-    });
-
-    if (!res.ok) {
-      const body = await res.text();
-      console.error(`API error: ${res.status} - ${body}`);
-      return new Response(
-        JSON.stringify({ success: false, error: `API returned ${res.status}`, details: body }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (apiMatches.length === 0) {
+      console.log("No FINISHED matches found, trying without status filter...");
+      apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo);
     }
 
-    const data = await res.json();
-    const apiMatches = data.matches || [];
-    console.log(`API returned ${apiMatches.length} finished matches`);
+    if (apiMatches.length === 0) {
+      console.log("Still 0, trying with competitions=CL,WC...");
+      apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo, "competitions=CL,WC");
+    }
+
+    // Filter to only usable matches (FINISHED status with scores)
+    const finishedMatches = apiMatches.filter(m => 
+      m.status === "FINISHED" && 
+      m.score?.fullTime?.home !== null && 
+      m.score?.fullTime?.home !== undefined
+    );
+
+    console.log(`${finishedMatches.length} usable FINISHED matches with scores`);
 
     let updated = 0;
     const errors: string[] = [];
@@ -143,7 +176,7 @@ serve(async (req) => {
       const awayTeam = (match as any).away_team;
       if (!homeTeam || !awayTeam) continue;
 
-      for (const apiMatch of apiMatches) {
+      for (const apiMatch of finishedMatches) {
         const apiHome = apiMatch.homeTeam?.name || apiMatch.homeTeam?.shortName || "";
         const apiAway = apiMatch.awayTeam?.name || apiMatch.awayTeam?.shortName || "";
 
@@ -151,23 +184,22 @@ serve(async (req) => {
           const homeScore = apiMatch.score?.fullTime?.home;
           const awayScore = apiMatch.score?.fullTime?.away;
 
-          if (homeScore !== null && homeScore !== undefined && awayScore !== null && awayScore !== undefined) {
-            const { error: updateError } = await supabase
-              .from("matches")
-              .update({
-                home_score: Number(homeScore),
-                away_score: Number(awayScore),
-                status: "finished",
-                result_source: "api",
-              })
-              .eq("id", match.id);
+          console.log(`Match found: ${homeTeam.name} vs ${awayTeam.name} => ${homeScore}-${awayScore}`);
 
-            if (updateError) {
-              errors.push(`Failed ${homeTeam.name} vs ${awayTeam.name}: ${updateError.message}`);
-            } else {
-              console.log(`Updated: ${homeTeam.name} ${homeScore} x ${awayScore} ${awayTeam.name}`);
-              updated++;
-            }
+          const { error: updateError } = await supabase
+            .from("matches")
+            .update({
+              home_score: Number(homeScore),
+              away_score: Number(awayScore),
+              status: "finished",
+              result_source: "api",
+            })
+            .eq("id", match.id);
+
+          if (updateError) {
+            errors.push(`Failed ${homeTeam.name} vs ${awayTeam.name}: ${updateError.message}`);
+          } else {
+            updated++;
           }
           break;
         }
@@ -175,7 +207,14 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, updated, pending_checked: pendingMatches.length, api_matches_found: apiMatches.length, errors: errors.length > 0 ? errors : undefined }),
+      JSON.stringify({
+        success: true,
+        updated,
+        pending_checked: pendingMatches.length,
+        api_matches_found: apiMatches.length,
+        finished_with_scores: finishedMatches.length,
+        errors: errors.length > 0 ? errors : undefined,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
