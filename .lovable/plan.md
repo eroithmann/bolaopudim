@@ -1,51 +1,35 @@
 
 
-# Proteger jogos manuais + Teste com Champions League
+# Corrigir `fetch-match-results` — API errada
 
-## Problema identificado
+## Problema
 
-A edge function `seed-matches-from-api` na **linha 171** faz `DELETE` de **todos** os matches antes de reinserir os da Copa. Isso apagou o jogo Goiás x Criciúma e qualquer palpite associado.
+A função `fetch-match-results` ainda usa a API antiga (`api-football-v1.p.rapidapi.com`) à qual você não é assinante. Por isso retorna erro 403.
 
-## Plano
+## Solução
 
-### 1. Proteger jogos manuais na função seed
+Reescrever `fetch-match-results` para usar a mesma API gratuita (`free-api-live-football-data.p.rapidapi.com`) que o seed já usa.
 
-Alterar `seed-matches-from-api/index.ts` para deletar apenas jogos que pertencem à fase de grupos da Copa (phase = 'groups' com group_name começando por "Grupo"), preservando jogos com `group_name = 'Teste'` ou qualquer outro grupo customizado.
+### Lógica da nova função
 
-Trocar a linha:
-```
-DELETE ... neq("id", "00000000...")
-```
-Por:
-```
-DELETE ... like("group_name", "Grupo %").eq("phase", "groups")
-```
+1. Buscar todos os matches do banco que têm `status != 'finished'` e `match_date` já passou (jogos que deveriam ter terminado)
+2. Para cada match, buscar o nome dos times via join com `teams`
+3. Usar o endpoint da API gratuita para buscar resultados dos jogos por time/data
+4. Atualizar `home_score`, `away_score`, `status = 'finished'`, `result_source = 'api'`
 
-Isso garante que jogos de teste ou de outras competições nunca sejam apagados pela importação da Copa.
+### Abordagem alternativa (mais robusta)
 
-### 2. Adicionar jogos da Champions League de hoje como teste
+Como a API gratuita pode não ter um endpoint direto de "fixtures by league", a abordagem mais confiável é:
 
-Inserir via SQL (usando insert tool) os times e jogos das quartas de final da Champions de hoje (08/04/2026). Os jogos de hoje são:
-- **Barcelona x Dortmund** (16h BRT)  
-- **Inter x Bayern** (16h BRT)
+1. Buscar matches pendentes (status `scheduled`, match_date < agora)
+2. Para cada match, usar endpoint de busca por time para encontrar o resultado
+3. Se encontrar score final, atualizar o match
 
-Criar os times (BAR, DOR, INT, BAY) se não existirem, e os matches com `group_name = 'Champions League'` e `phase = 'test'` para distinguir dos jogos da Copa.
+### Detalhes técnicos
 
-### 3. Atualizar `fetch-match-results` para suportar Champions
-
-A função atual busca resultados apenas da `league=1&season=2026` (Copa do Mundo). Adicionar suporte para buscar resultados da Champions League (`league=2&season=2025`) para os jogos marcados como Champions.
-
-Alternativa mais simples: como é teste, manter o fluxo manual pelo Admin — inserir o resultado manualmente depois do jogo para validar o cálculo de pontos e ranking.
-
-### 4. Adicionar bandeiras dos times da Champions no `teamFlags.ts`
-
-Adicionar códigos de clubes: BAR (bandeira da Espanha como fallback), DOR (Alemanha), INT (Itália), BAY (Alemanha). Ou usar logos genéricos.
-
----
-
-## Detalhes técnicos
-
-- A proteção no seed é a mudança mais crítica — evita perda de dados na Copa
-- Os jogos da Champions terão `phase: 'test'` para fácil limpeza posterior
-- O `recalculate_match_points` trigger já funciona para qualquer match — basta salvar o resultado pelo Admin
+- Arquivo: `supabase/functions/fetch-match-results/index.ts`
+- Manter CORS headers corretos
+- Usar `RAPIDAPI_KEY` existente (mesmo secret)
+- Host: `free-api-live-football-data.p.rapidapi.com`
+- Fallback: se a API não retornar dados, reportar sem erro — o admin pode inserir manualmente
 
