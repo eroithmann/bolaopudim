@@ -1,50 +1,44 @@
 
 
-# Migrar fetch-match-results para football-data.org
+# Corrigir fetch-match-results — API retorna 0 resultados
 
-## O que muda
+## Diagnóstico
 
-Trocar a API instável do RapidAPI pela **football-data.org v4**, que é gratuita, documentada e confiável.
+A função está funcionando corretamente (HTTP 200), mas a API football-data.org retorna **0 jogos** para `dateFrom=2026-04-07&dateTo=2026-04-07&status=FINISHED`.
 
-## Passos
+O plano gratuito da football-data.org cobre Champions League, mas o endpoint `/v4/matches` sem filtro de competição pode não retornar tudo. Além disso, precisamos de melhor logging para entender o que a API está devolvendo.
 
-### 1. Salvar a API key como secret
-- Nome: `FOOTBALL_DATA_TOKEN`
-- Valor: `447476e58ebe45a8a8f06af71821a44d`
+## Plano
 
-### 2. Reescrever `supabase/functions/fetch-match-results/index.ts`
+### 1. Adicionar filtro de competição e logging detalhado
+
+Alterar a função para:
+- Fazer múltiplas chamadas filtradas por competição (Champions League = `CL`, Copa do Mundo = `WC`)
+- Logar o corpo da resposta da API para debug
+- Se a chamada sem filtro retornar 0, tentar com filtro `competitions=CL,WC`
+
+### 2. Testar com a resposta raw
+
+Adicionar `console.log` do JSON bruto da API para ver exatamente o que ela retorna — pode ser que os jogos estejam lá com status diferente de `FINISHED` (ex: `IN_PLAY`, `PAUSED`).
+
+### 3. Fallback: buscar sem filtro de status
+
+Se `status=FINISHED` retornar 0, fazer uma segunda chamada sem esse filtro para ver todos os jogos do dia e logar os status encontrados.
+
+## Alteração técnica
+
+Arquivo: `supabase/functions/fetch-match-results/index.ts`
+
+```text
+Lógica atual:
+  GET /v4/matches?dateFrom=X&dateTo=Y&status=FINISHED
 
 Nova lógica:
-1. Buscar matches pendentes no banco (`status != 'finished'` e `match_date < agora`)
-2. Extrair intervalo de datas (dateFrom/dateTo)
-3. Chamar `GET https://api.football-data.org/v4/matches?dateFrom=...&dateTo=...&status=FINISHED` com header `X-Auth-Token`
-4. Para cada resultado da API, comparar nomes dos times com os do banco (usando `teamAliases` existente)
-5. Se encontrar match correspondente, atualizar `home_score`, `away_score`, `status = 'finished'`, `result_source = 'api'`
-
-A API retorna:
-```json
-{
-  "matches": [{
-    "status": "FINISHED",
-    "homeTeam": { "name": "Sporting CP" },
-    "awayTeam": { "name": "Arsenal FC" },
-    "score": {
-      "fullTime": { "home": 1, "away": 3 }
-    }
-  }]
-}
+  1. GET /v4/matches?dateFrom=X&dateTo=Y&status=FINISHED
+  2. Se retornar 0, tentar GET /v4/matches?dateFrom=X&dateTo=Y (sem filtro status)
+  3. Logar todos os jogos encontrados com seus status
+  4. Atualizar apenas os que têm score final
 ```
 
-### 3. Manter fallback
-- Se a API não retornar dados ou não encontrar o jogo, reportar sem erro
-- Admin pode inserir manualmente pelo painel
-
-### 4. Testar
-- Resetar os jogos da Champions para `scheduled`
-- Clicar "Buscar Resultados" no Admin
-- Verificar se os placares atualizam e o ranking recalcula
-
-## Arquivos alterados
-- `supabase/functions/fetch-match-results/index.ts` — reescrita completa
-- Novo secret: `FOOTBALL_DATA_TOKEN`
+Isso vai nos mostrar se o problema é o filtro de status, a competição, ou se a API simplesmente não tem os dados.
 
