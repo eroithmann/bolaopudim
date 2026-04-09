@@ -147,7 +147,7 @@ serve(async (req) => {
     let dateTo = matchDates.reduce((a, b) => a > b ? a : b);
     // Expand range by +1 day to account for timezone differences
     const dateToObj = new Date(dateTo);
-    dateToObj.setDate(dateToObj.getDate() + 1);
+    dateToObj.setDate(dateToObj.getDate() + 2);
     dateTo = dateToObj.toISOString().split("T")[0];
 
     // Strategy: try with FINISHED filter first, then without, then with competition filters
