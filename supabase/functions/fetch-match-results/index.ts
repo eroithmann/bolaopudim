@@ -144,7 +144,11 @@ serve(async (req) => {
     // Get date range
     const matchDates = pendingMatches.map(m => m.match_date.split("T")[0]);
     const dateFrom = matchDates.reduce((a, b) => a < b ? a : b);
-    const dateTo = matchDates.reduce((a, b) => a > b ? a : b);
+    let dateTo = matchDates.reduce((a, b) => a > b ? a : b);
+    // Expand range by +1 day to account for timezone differences
+    const dateToObj = new Date(dateTo);
+    dateToObj.setDate(dateToObj.getDate() + 1);
+    dateTo = dateToObj.toISOString().split("T")[0];
 
     // Strategy: try with FINISHED filter first, then without, then with competition filters
     let apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo, "status=FINISHED");
