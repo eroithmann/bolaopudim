@@ -23,20 +23,25 @@ export default function Ranking() {
   }, []);
 
   const fetchRanking = async () => {
-    // Fetch all profiles
     const { data: profiles } = await supabase
       .from("profiles")
       .select("user_id, name");
 
-    // Fetch predictions with points
+    // Only fetch predictions for finished matches
+    const { data: finishedMatches } = await supabase
+      .from("matches")
+      .select("id")
+      .eq("status", "finished");
+
+    const finishedIds = new Set((finishedMatches || []).map((m: any) => m.id));
+
     const { data: predictions } = await supabase
       .from("predictions")
-      .select("user_id, points")
+      .select("user_id, match_id, points")
       .not("points", "is", null);
 
     const grouped: Record<string, RankingEntry> = {};
 
-    // Initialize all profiles with zero
     if (profiles) {
       profiles.forEach((p: any) => {
         grouped[p.user_id] = {
@@ -50,10 +55,10 @@ export default function Ranking() {
       });
     }
 
-    // Add prediction points
     if (predictions) {
       predictions.forEach((p: any) => {
         if (!grouped[p.user_id]) return;
+        if (!finishedIds.has(p.match_id)) return; // Skip non-finished matches
         const pts = p.points || 0;
         grouped[p.user_id].total_points += pts;
         if (pts === 5) grouped[p.user_id].exact_scores++;
