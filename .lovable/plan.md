@@ -1,44 +1,51 @@
 
 
-# Corrigir fetch-match-results — API retorna 0 resultados
+# Corrigir datas dos jogos teste para a API funcionar
 
-## Diagnóstico
+## Problema
 
-A função está funcionando corretamente (HTTP 200), mas a API football-data.org retorna **0 jogos** para `dateFrom=2026-04-07&dateTo=2026-04-07&status=FINISHED`.
+A API football-data.org **funciona** — testei e ela retorna os resultados corretos:
+- Arsenal 3x0 Real Madrid
+- Bayern 1x2 Inter
 
-O plano gratuito da football-data.org cobre Champions League, mas o endpoint `/v4/matches` sem filtro de competição pode não retornar tudo. Além disso, precisamos de melhor logging para entender o que a API está devolvendo.
+Porém, os jogos no banco estão com data **2026-04-07**, e a API só tem dados de datas reais. Quando a função busca `dateFrom=2026-04-07`, a API retorna 0 porque essa data é "futura" para ela.
 
-## Plano
+Os jogos reais aconteceram em **2025-04-08**.
 
-### 1. Adicionar filtro de competição e logging detalhado
+## Solução
 
-Alterar a função para:
-- Fazer múltiplas chamadas filtradas por competição (Champions League = `CL`, Copa do Mundo = `WC`)
-- Logar o corpo da resposta da API para debug
-- Se a chamada sem filtro retornar 0, tentar com filtro `competitions=CL,WC`
+### 1. Atualizar as datas dos jogos teste no banco
 
-### 2. Testar com a resposta raw
+Alterar as datas dos 2 matches de Champions para `2025-04-08` (data real) via migration SQL:
+- Sporting vs Arsenal → `2025-04-08 19:00:00+00`
+- Real Madrid vs Bayern → `2025-04-08 19:00:00+00`
 
-Adicionar `console.log` do JSON bruto da API para ver exatamente o que ela retorna — pode ser que os jogos estejam lá com status diferente de `FINISHED` (ex: `IN_PLAY`, `PAUSED`).
+### 2. Corrigir nomes dos times no matching
 
-### 3. Fallback: buscar sem filtro de status
+A API retorna:
+- `"Arsenal FC"` — precisa fazer match com `"Arsenal"`  ✅ (já tem alias)
+- `"Real Madrid CF"` — precisa fazer match com `"Real Madrid"` ✅ (já tem alias)
+- `"FC Bayern München"` — precisa fazer match com `"Bayern Munich"` ✅ (já tem alias)
 
-Se `status=FINISHED` retornar 0, fazer uma segunda chamada sem esse filtro para ver todos os jogos do dia e logar os status encontrados.
+Os aliases já cobrem esses casos.
 
-## Alteração técnica
+### 3. Ajustar a função para nota dos times
 
-Arquivo: `supabase/functions/fetch-match-results/index.ts`
+A API retorna `Sporting CP` e o banco tem `Sporting CP` — match direto. Arsenal, Real Madrid e Bayern também já estão mapeados.
 
-```text
-Lógica atual:
-  GET /v4/matches?dateFrom=X&dateTo=Y&status=FINISHED
+### 4. Testar
 
-Nova lógica:
-  1. GET /v4/matches?dateFrom=X&dateTo=Y&status=FINISHED
-  2. Se retornar 0, tentar GET /v4/matches?dateFrom=X&dateTo=Y (sem filtro status)
-  3. Logar todos os jogos encontrados com seus status
-  4. Atualizar apenas os que têm score final
-```
+Após a migration, clicar "Buscar Resultados" no Admin. A função vai buscar `dateFrom=2025-04-08` e encontrar os resultados, atualizando automaticamente:
+- Sporting CP vs Arsenal → resultado da API
+- Real Madrid vs Bayern → resultado da API
 
-Isso vai nos mostrar se o problema é o filtro de status, a competição, ou se a API simplesmente não tem os dados.
+**Nota**: Os jogos reais dessa data são Arsenal vs Real Madrid e Bayern vs Inter — não Sporting vs Arsenal e Real Madrid vs Bayern. Então o matching pode não funcionar se os confrontos do banco não correspondem aos da API. Nesse caso, seria melhor **inserir manualmente** os resultados que você quiser pelo Admin, já que esses são jogos fictícios de teste.
+
+## Alternativa recomendada
+
+Como os confrontos no banco (Sporting vs Arsenal, Real Madrid vs Bayern) são diferentes dos reais da Champions (Arsenal vs Real Madrid, Bayern vs Inter), a melhor abordagem é:
+
+1. **Inserir manualmente** os resultados pelo Admin para testar o ranking
+2. Confiar que a API está funcionando (já comprovado acima)
+3. Na Copa do Mundo real, os confrontos vão bater com os da API e tudo vai funcionar automaticamente
 
