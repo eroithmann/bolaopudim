@@ -1,43 +1,50 @@
 
 
-# Corrigir jogos de teste + Blindar matching para a Copa
+# Corrigir pontos fantasma + API de teste
 
-## Problema
+## Problemas encontrados
 
-1. Os confrontos de teste foram alterados de Sporting x Arsenal e Real Madrid x Bayern para Arsenal x Real Madrid e Bayern x Inter — que são os jogos reais da Champions 2024/25. Isso foi feito na tentativa anterior de fazer a API funcionar. Precisa voltar ao correto.
+### 1. Pontos fantasma no ranking (6 pontos)
+O trigger `on_match_result_updated` só roda quando `status = 'finished'`. Quando limpamos o resultado (voltando para `scheduled`), o trigger **não roda** e os pontos antigos ficam na tabela `predictions`. Agora as predictions mostram 5 + 1 = 6 pontos, mesmo sem resultado nos matches.
 
-2. A função `fetch-match-results` tem riscos para a Copa:
-   - O `matchesTeamName` usa `includes()`, que pode causar falsos positivos (ex: "Inter" matching "Inter Miami")
-   - Não valida que **ambos** os times do confronto batem — na verdade valida, mas o `includes` é perigoso
-   - Não há proteção contra atualizar um jogo com resultado de outro jogo diferente
+### 2. Ranking não valida se o jogo terminou
+A query do ranking soma `predictions.points` sem verificar se o match correspondente está `finished`. Pontos órfãos aparecem no ranking.
+
+### 3. API não encontra os jogos de teste
+"Sporting CP vs Arsenal" e "Real Madrid vs Bayern Munich" são confrontos **fictícios** — nunca aconteceram na vida real. A API football-data.org só retorna jogos reais. Por isso retorna "NO MATCH" para ambos.
 
 ## Plano
 
-### 1. Restaurar os confrontos de teste corretos
+### 1. Resetar pontos órfãos agora (SQL UPDATE)
+```sql
+UPDATE predictions SET points = NULL 
+WHERE match_id IN (
+  SELECT id FROM matches WHERE status != 'finished'
+);
+```
 
-Via insert tool (UPDATE), restaurar:
-- Match `52fc79fd...` → home: Sporting CP, away: Arsenal, status: scheduled, scores: null
-- Match `dde18283...` → home: Real Madrid, away: Bayern Munich, status: scheduled, scores: null
+### 2. Melhorar o trigger para resetar pontos ao limpar resultado
+Alterar o trigger para rodar também quando o match volta para `scheduled`, zerando os pontos das predictions associadas. Novo trigger:
+- Se `status = 'finished'` → calcula pontos (como hoje)
+- Se `status != 'finished'` → seta `points = NULL` nas predictions
 
-### 2. Blindar o matching de times na edge function
+### 3. Ranking: filtrar apenas matches finalizados
+Alterar `Ranking.tsx` para fazer join com `matches` e só somar pontos de jogos com `status = 'finished'`. Isso protege contra qualquer dado inconsistente.
 
-Melhorar `matchesTeamName` para ser mais rigoroso:
-- Remover a lógica de `includes()` que causa falsos positivos
-- Usar apenas comparação exata e aliases explícitos
-- Cada alias deve ser uma string completa, não substring
+### 4. Sobre os jogos de teste e a API
+Os confrontos Sporting vs Arsenal e Real Madrid vs Bayern são fictícios. A API **nunca** vai encontrá-los. Duas opções:
+- **Opção A**: Trocar os jogos de teste por confrontos reais (ex: Arsenal vs Real Madrid, Bayern vs Inter de 08/04/2025) — a API vai encontrar e atualizar
+- **Opção B**: Manter os fictícios e aceitar que só funcionam com inserção manual — a Copa real vai funcionar porque os confrontos vão bater
 
-### 3. Adicionar validação extra no matching
-
-Antes de atualizar um match, verificar:
-- Ambos os times (home E away) batem com o jogo da API
-- A data do jogo da API está próxima da data do banco (±2 dias)
-- Log claro de quais jogos foram matched e quais não
-
-### 4. Adicionar mais aliases para Copa do Mundo 2026
-
-Garantir que todos os 48 times da Copa tenham aliases cobrindo os nomes que a football-data.org usa (ex: "Korea Republic" → "South Korea").
+Vou implementar a **Opção A** por padrão (trocar para confrontos reais) para que você possa testar a API de ponta a ponta. Se preferir manter os fictícios, me avise.
 
 ## Arquivos alterados
-- `supabase/functions/fetch-match-results/index.ts` — matching mais seguro
-- 2 UPDATEs no banco para restaurar os jogos de teste
+- Migration SQL: novo trigger + reset de pontos órfãos
+- `src/pages/Ranking.tsx` — filtrar pontos apenas de jogos finalizados
+- Migration SQL: atualizar `home_team_id`/`away_team_id` dos matches de teste para confrontos reais
+
+## Detalhes técnicos
+- O trigger atual tem `WHEN (new.status = 'finished')` — precisa ser removido do WHEN e a lógica condicional vai para dentro da função
+- A função `recalculate_match_points` será alterada para lidar com ambos os cenários
+- O ranking passará a fazer query com join: `predictions` → `matches` (via `match_id`) filtrando `matches.status = 'finished'`
 
