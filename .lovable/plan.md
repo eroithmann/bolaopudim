@@ -1,51 +1,43 @@
 
 
-# Corrigir datas dos jogos teste para a API funcionar
+# Corrigir jogos de teste + Blindar matching para a Copa
 
 ## Problema
 
-A API football-data.org **funciona** — testei e ela retorna os resultados corretos:
-- Arsenal 3x0 Real Madrid
-- Bayern 1x2 Inter
+1. Os confrontos de teste foram alterados de Sporting x Arsenal e Real Madrid x Bayern para Arsenal x Real Madrid e Bayern x Inter — que são os jogos reais da Champions 2024/25. Isso foi feito na tentativa anterior de fazer a API funcionar. Precisa voltar ao correto.
 
-Porém, os jogos no banco estão com data **2026-04-07**, e a API só tem dados de datas reais. Quando a função busca `dateFrom=2026-04-07`, a API retorna 0 porque essa data é "futura" para ela.
+2. A função `fetch-match-results` tem riscos para a Copa:
+   - O `matchesTeamName` usa `includes()`, que pode causar falsos positivos (ex: "Inter" matching "Inter Miami")
+   - Não valida que **ambos** os times do confronto batem — na verdade valida, mas o `includes` é perigoso
+   - Não há proteção contra atualizar um jogo com resultado de outro jogo diferente
 
-Os jogos reais aconteceram em **2025-04-08**.
+## Plano
 
-## Solução
+### 1. Restaurar os confrontos de teste corretos
 
-### 1. Atualizar as datas dos jogos teste no banco
+Via insert tool (UPDATE), restaurar:
+- Match `52fc79fd...` → home: Sporting CP, away: Arsenal, status: scheduled, scores: null
+- Match `dde18283...` → home: Real Madrid, away: Bayern Munich, status: scheduled, scores: null
 
-Alterar as datas dos 2 matches de Champions para `2025-04-08` (data real) via migration SQL:
-- Sporting vs Arsenal → `2025-04-08 19:00:00+00`
-- Real Madrid vs Bayern → `2025-04-08 19:00:00+00`
+### 2. Blindar o matching de times na edge function
 
-### 2. Corrigir nomes dos times no matching
+Melhorar `matchesTeamName` para ser mais rigoroso:
+- Remover a lógica de `includes()` que causa falsos positivos
+- Usar apenas comparação exata e aliases explícitos
+- Cada alias deve ser uma string completa, não substring
 
-A API retorna:
-- `"Arsenal FC"` — precisa fazer match com `"Arsenal"`  ✅ (já tem alias)
-- `"Real Madrid CF"` — precisa fazer match com `"Real Madrid"` ✅ (já tem alias)
-- `"FC Bayern München"` — precisa fazer match com `"Bayern Munich"` ✅ (já tem alias)
+### 3. Adicionar validação extra no matching
 
-Os aliases já cobrem esses casos.
+Antes de atualizar um match, verificar:
+- Ambos os times (home E away) batem com o jogo da API
+- A data do jogo da API está próxima da data do banco (±2 dias)
+- Log claro de quais jogos foram matched e quais não
 
-### 3. Ajustar a função para nota dos times
+### 4. Adicionar mais aliases para Copa do Mundo 2026
 
-A API retorna `Sporting CP` e o banco tem `Sporting CP` — match direto. Arsenal, Real Madrid e Bayern também já estão mapeados.
+Garantir que todos os 48 times da Copa tenham aliases cobrindo os nomes que a football-data.org usa (ex: "Korea Republic" → "South Korea").
 
-### 4. Testar
-
-Após a migration, clicar "Buscar Resultados" no Admin. A função vai buscar `dateFrom=2025-04-08` e encontrar os resultados, atualizando automaticamente:
-- Sporting CP vs Arsenal → resultado da API
-- Real Madrid vs Bayern → resultado da API
-
-**Nota**: Os jogos reais dessa data são Arsenal vs Real Madrid e Bayern vs Inter — não Sporting vs Arsenal e Real Madrid vs Bayern. Então o matching pode não funcionar se os confrontos do banco não correspondem aos da API. Nesse caso, seria melhor **inserir manualmente** os resultados que você quiser pelo Admin, já que esses são jogos fictícios de teste.
-
-## Alternativa recomendada
-
-Como os confrontos no banco (Sporting vs Arsenal, Real Madrid vs Bayern) são diferentes dos reais da Champions (Arsenal vs Real Madrid, Bayern vs Inter), a melhor abordagem é:
-
-1. **Inserir manualmente** os resultados pelo Admin para testar o ranking
-2. Confiar que a API está funcionando (já comprovado acima)
-3. Na Copa do Mundo real, os confrontos vão bater com os da API e tudo vai funcionar automaticamente
+## Arquivos alterados
+- `supabase/functions/fetch-match-results/index.ts` — matching mais seguro
+- 2 UPDATEs no banco para restaurar os jogos de teste
 
