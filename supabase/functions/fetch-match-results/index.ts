@@ -15,6 +15,7 @@ const teamAliases: Record<string, string[]> = {
   "Real Madrid": ["real madrid", "real madrid cf"],
   "Bayern Munich": ["bayern munich", "bayern münchen", "fc bayern münchen", "fc bayern munich", "bayern munchen"],
   "Barcelona": ["barcelona", "fc barcelona", "barça"],
+  "Atlético de Madrid": ["atletico madrid", "atlético de madrid", "atlético madrid", "atletico de madrid", "club atlético de madrid", "club atletico de madrid"],
   "Borussia Dortmund": ["borussia dortmund", "bvb 09 borussia dortmund", "bvb"],
   "Inter Milan": ["inter milan", "fc internazionale milano", "internazionale"],
   // World Cup 2026 national teams
