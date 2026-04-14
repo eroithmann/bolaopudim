@@ -27,6 +27,13 @@ interface OddsData {
   bookmaker?: string;
 }
 
+interface BetDistribution {
+  home: number;
+  draw: number;
+  away: number;
+  total: number;
+}
+
 interface MatchCardProps {
   match: {
     id: string;
@@ -45,15 +52,16 @@ interface MatchCardProps {
   saving: boolean;
   isLoggedIn: boolean;
   odds?: OddsData | null;
+  betDistribution?: BetDistribution | null;
   onEditChange: (scores: { home: string; away: string }) => void;
   onSave: () => void;
 }
 
 export default function MatchCard({
-  match, prediction, editScore, saving, isLoggedIn, odds, onEditChange, onSave,
+  match, prediction, editScore, saving, isLoggedIn, odds, betDistribution, onEditChange, onSave,
 }: MatchCardProps) {
   const matchDate = new Date(match.match_date);
-  const deadlineDate = new Date(matchDate.getTime() - 30 * 60 * 1000); // 30min before
+  const deadlineDate = new Date(matchDate.getTime() - 60 * 60 * 1000); // 1h before
 
   const [now, setNow] = useState(new Date());
 
@@ -169,6 +177,42 @@ export default function MatchCard({
                 2: {Math.round((1 / odds.away) * 100)}%
               </span>
             )}
+          </div>
+        )}
+
+        {/* Bet distribution */}
+        {locked && betDistribution && betDistribution.total > 0 && (
+          <div className="mt-3">
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground mb-1">
+              <span>🏠 {betDistribution.total > 0 ? Math.round((betDistribution.home / betDistribution.total) * 100) : 0}%</span>
+              <span className="font-medium">{betDistribution.total} palpite{betDistribution.total !== 1 ? "s" : ""}</span>
+              <span>{betDistribution.total > 0 ? Math.round((betDistribution.away / betDistribution.total) * 100) : 0}% 🏟️</span>
+            </div>
+            <div className="flex h-2.5 rounded-full overflow-hidden bg-muted">
+              {betDistribution.home > 0 && (
+                <div
+                  className="bg-emerald-500 transition-all"
+                  style={{ width: `${(betDistribution.home / betDistribution.total) * 100}%` }}
+                />
+              )}
+              {betDistribution.draw > 0 && (
+                <div
+                  className="bg-gray-400 transition-all"
+                  style={{ width: `${(betDistribution.draw / betDistribution.total) * 100}%` }}
+                />
+              )}
+              {betDistribution.away > 0 && (
+                <div
+                  className="bg-red-500 transition-all"
+                  style={{ width: `${(betDistribution.away / betDistribution.total) * 100}%` }}
+                />
+              )}
+            </div>
+            <div className="flex items-center justify-center gap-3 mt-1 text-[10px] text-muted-foreground">
+              <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-emerald-500" /> Casa ({betDistribution.home})</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-gray-400" /> Empate ({betDistribution.draw})</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-500" /> Fora ({betDistribution.away})</span>
+            </div>
           </div>
         )}
 
