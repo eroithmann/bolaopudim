@@ -71,6 +71,7 @@ export default function Games() {
   const [editScores, setEditScores] = useState<Record<string, { home: string; away: string }>>({});
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [odds, setOdds] = useState<Record<string, OddsData>>({});
+  const [betDistribution, setBetDistribution] = useState<Record<string, { home: number; draw: number; away: number; total: number }>>({});
 
   useEffect(() => {
     fetchMatches();
@@ -78,7 +79,10 @@ export default function Games() {
   }, [user]);
 
   useEffect(() => {
-    if (matches.length > 0) fetchOdds();
+    if (matches.length > 0) {
+      fetchOdds();
+      fetchBetDistribution();
+    }
   }, [matches]);
 
   const fetchMatches = async () => {
@@ -141,6 +145,36 @@ export default function Games() {
     } catch {
       // Odds are optional, fail silently
     }
+  };
+
+  const fetchBetDistribution = async () => {
+    // Only fetch for locked matches (1h before kickoff)
+    const now = new Date();
+    const lockedMatchIds = matches
+      .filter((m) => now >= new Date(new Date(m.match_date).getTime() - 60 * 60 * 1000))
+      .map((m) => m.id);
+
+    if (lockedMatchIds.length === 0) {
+      setBetDistribution({});
+      return;
+    }
+
+    const { data } = await supabase
+      .from("predictions")
+      .select("match_id, home_score, away_score")
+      .in("match_id", lockedMatchIds);
+
+    if (!data) return;
+
+    const dist: Record<string, { home: number; draw: number; away: number; total: number }> = {};
+    data.forEach((p) => {
+      if (!dist[p.match_id]) dist[p.match_id] = { home: 0, draw: 0, away: 0, total: 0 };
+      dist[p.match_id].total++;
+      if (p.home_score > p.away_score) dist[p.match_id].home++;
+      else if (p.home_score === p.away_score) dist[p.match_id].draw++;
+      else dist[p.match_id].away++;
+    });
+    setBetDistribution(dist);
   };
 
   const savePrediction = async (matchId: string) => {
@@ -223,6 +257,7 @@ export default function Games() {
                       saving={!!saving[match.id]}
                       isLoggedIn={!!user}
                       odds={odds[match.id] || null}
+                      betDistribution={betDistribution[match.id] || null}
                       onEditChange={(scores) => setEditScores((s) => ({ ...s, [match.id]: scores }))}
                       onSave={() => savePrediction(match.id)}
                     />
