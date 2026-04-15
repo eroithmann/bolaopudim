@@ -19,7 +19,7 @@ const teamAliases: Record<string, string[]> = {
   "Borussia Dortmund": ["borussia dortmund", "bvb 09 borussia dortmund", "bvb"],
   "Inter Milan": ["inter milan", "fc internazionale milano", "internazionale"],
   "Liverpool": ["liverpool", "liverpool fc"],
-  "Paris Saint-Germain": ["paris saint-germain", "paris sg", "psg"],
+  "Paris Saint-Germain": ["paris saint-germain", "paris saint-germain fc", "paris sg", "psg"],
   // World Cup 2026 national teams
   "Brasil": ["brazil", "brasil"],
   "Argentina": ["argentina"],
