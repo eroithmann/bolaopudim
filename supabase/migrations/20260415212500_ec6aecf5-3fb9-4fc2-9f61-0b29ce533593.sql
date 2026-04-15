@@ -1,0 +1,1 @@
+UPDATE public.matches SET group_name = 'Champions League QF' WHERE group_name IS NOT NULL AND group_name != 'Champions League QF' AND phase = 'groups';
