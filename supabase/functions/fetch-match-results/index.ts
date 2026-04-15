@@ -19,7 +19,7 @@ const teamAliases: Record<string, string[]> = {
   "Borussia Dortmund": ["borussia dortmund", "bvb 09 borussia dortmund", "bvb"],
   "Inter Milan": ["inter milan", "fc internazionale milano", "internazionale"],
   "Liverpool": ["liverpool", "liverpool fc"],
-  "Paris Saint-Germain": ["paris saint-germain", "paris sg", "psg"],
+  "Paris Saint-Germain": ["paris saint-germain", "paris saint-germain fc", "paris sg", "psg"],
   // World Cup 2026 national teams
   "Brasil": ["brazil", "brasil"],
   "Argentina": ["argentina"],
@@ -82,20 +82,41 @@ const teamAliases: Record<string, string[]> = {
 };
 
 /**
+ * Strip common suffixes like FC, CF, SC, AFC from a team name.
+ */
+function stripSuffix(name: string): string {
+  return name.replace(/\b(fc|cf|sc|afc)\b/gi, "").trim().replace(/\s+/g, " ");
+}
+
+/**
  * Strict team name matching — NO substring/includes matching.
- * Only exact match or explicit alias match.
+ * 1. Exact match (lowercase)
+ * 2. Alias exact match
+ * 3. Fallback: strip common suffixes (FC/CF/SC/AFC) and compare
  */
 function matchesTeamName(dbName: string, apiName: string): boolean {
   const apiLower = apiName.toLowerCase().trim();
   const dbLower = dbName.toLowerCase().trim();
 
-  // Exact match
+  // 1. Exact match
   if (dbLower === apiLower) return true;
 
-  // Check aliases (exact match only)
+  // 2. Check aliases (exact match only)
   const aliases = teamAliases[dbName];
+  if (aliases && aliases.some(alias => alias === apiLower)) {
+    return true;
+  }
+
+  // 3. Fallback: strip suffixes and compare
+  const dbStripped = stripSuffix(dbLower);
+  const apiStripped = stripSuffix(apiLower);
+  if (dbStripped.length > 0 && dbStripped === apiStripped) {
+    return true;
+  }
+
+  // Also check aliases with stripped suffixes
   if (aliases) {
-    return aliases.some(alias => alias === apiLower);
+    return aliases.some(alias => stripSuffix(alias) === apiStripped);
   }
 
   return false;
