@@ -22,8 +22,8 @@ export default function Layout({ children }: { children: ReactNode }) {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <Trophy className="h-7 w-7 text-secondary" />
-            <span className="text-2xl font-bold tracking-wider" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-              BOLÃO 2026
+            <span className="text-2xl tracking-wider font-sans font-bold">
+              Bolão do Zap - 2026
             </span>
           </Link>
 
