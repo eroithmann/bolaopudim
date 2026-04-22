@@ -18,12 +18,25 @@ export default function Layout({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-primary text-primary-foreground shadow-lg sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Trophy className="h-7 w-7 text-secondary" />
-            <span className="text-2xl tracking-wider font-sans font-bold">
-              Bolão do Zap - 2026
+      <header className="relative bg-gradient-to-r from-primary via-primary to-primary/90 text-primary-foreground shadow-xl sticky top-0 z-50 overflow-hidden">
+        {/* Decorative accent stripe */}
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-secondary via-secondary/60 to-secondary" />
+        <div className="absolute -top-12 -right-12 w-40 h-40 rounded-full bg-secondary/10 blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-16 left-1/3 w-56 h-56 rounded-full bg-secondary/5 blur-3xl pointer-events-none" />
+
+        <div className="relative max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center gap-2.5 group">
+            <div className="relative">
+              <div className="absolute inset-0 bg-secondary/40 blur-md rounded-full group-hover:bg-secondary/60 transition-colors" />
+              <Trophy className="relative h-7 w-7 text-secondary drop-shadow-[0_0_8px_hsl(var(--secondary)/0.6)]" />
+            </div>
+            <span
+              className="text-2xl md:text-[1.6rem] font-extrabold tracking-tight leading-none"
+              style={{ fontFamily: "'Outfit', sans-serif" }}
+            >
+              Bolão <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent italic">do Zap</span>
+              <span className="text-primary-foreground/60 mx-1.5 font-light">·</span>
+              <span className="text-secondary font-black">2026</span>
             </span>
           </Link>
 
