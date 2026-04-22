@@ -34,7 +34,7 @@ export default function Layout({ children }: { children: ReactNode }) {
               className="text-2xl md:text-[1.6rem] font-extrabold tracking-tight leading-none"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              Bolão <span className="bg-gradient-to-r from-secondary to-yellow-300 bg-clip-text text-transparent italic">do Zap</span>
+              Bolão <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent italic">do Zap</span>
               <span className="text-primary-foreground/60 mx-1.5 font-light">·</span>
               <span className="text-secondary font-black">2026</span>
             </span>
