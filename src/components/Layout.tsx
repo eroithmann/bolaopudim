@@ -141,8 +141,15 @@ export default function Layout({ children }: { children: ReactNode }) {
         {children}
       </main>
 
-      <footer className="bg-primary text-primary-foreground/70 text-center py-4 text-sm">
-        Bolão Copa do Mundo 2026 ⚽
+      <footer className="relative bg-gradient-to-br from-primary to-primary/90 text-primary-foreground/80 py-8 overflow-hidden">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-secondary to-transparent" />
+        <div className="max-w-6xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-3 text-sm">
+          <div className="flex items-center gap-2">
+            <Trophy className="h-4 w-4 text-secondary" />
+            <span style={{ fontFamily: "'Outfit', sans-serif" }} className="font-bold tracking-wide">Bolão do Zap · 2026</span>
+          </div>
+          <span className="opacity-70">Feito com ⚽ pra galera do grupo</span>
+        </div>
       </footer>
     </div>
   );
