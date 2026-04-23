@@ -74,37 +74,81 @@ export default function Index() {
   return (
     <Layout>
       {/* Hero */}
-      <section className="bg-gradient-to-br from-primary to-primary/80 text-primary-foreground py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl md:text-7xl font-bold mb-4" style={{ fontFamily: "'Bebas Neue', sans-serif" }}>
-            BOLÃO COPA DO MUNDO 2026
+      <section className="relative overflow-hidden bg-gradient-to-br from-primary via-primary to-primary/70 text-primary-foreground py-24 px-4">
+        {/* Decorative blobs */}
+        <div className="absolute -top-24 -left-24 w-96 h-96 rounded-full bg-secondary/20 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-16 w-[28rem] h-[28rem] rounded-full bg-accent/15 blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 opacity-[0.04] pointer-events-none" style={{ backgroundImage: "radial-gradient(hsl(var(--primary-foreground)) 1px, transparent 1px)", backgroundSize: "24px 24px" }} />
+
+        <div className="relative max-w-5xl mx-auto text-center">
+          <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary-foreground/10 backdrop-blur-sm border border-primary-foreground/20 text-xs font-semibold tracking-widest uppercase mb-6">
+            <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
+            Temporada 2026 · Aberta
+          </span>
+          <h1
+            className="text-6xl md:text-8xl font-black mb-6 leading-[0.9] tracking-tight"
+            style={{ fontFamily: "'Outfit', sans-serif" }}
+          >
+            Aposte. Vibre.{" "}
+            <span className="italic bg-gradient-to-r from-secondary via-accent to-secondary bg-clip-text text-transparent drop-shadow-[0_0_30px_hsl(var(--secondary)/0.4)]">
+              Vença.
+            </span>
           </h1>
-          <p className="text-lg md:text-xl opacity-90 mb-8 font-sans">
-            Faça seus palpites, acompanhe os resultados e dispute com seus amigos!
+          <p className="text-lg md:text-2xl opacity-90 mb-10 font-sans max-w-2xl mx-auto leading-relaxed">
+            O bolão definitivo da Copa do Mundo. Palpite cada jogo, suba no ranking e prove que entende mais que seus amigos.
           </p>
-          {!user ? (
-            <Link to="/auth">
-              <Button size="lg" variant="secondary" className="text-lg px-8">
-                Participar agora <ArrowRight className="ml-2 h-5 w-5" />
+          <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            {!user ? (
+              <Link to="/auth">
+                <Button size="lg" variant="secondary" className="text-lg px-10 h-14 shadow-2xl shadow-secondary/30 hover:scale-105 transition-transform">
+                  Participar agora <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/games">
+                <Button size="lg" variant="secondary" className="text-lg px-10 h-14 shadow-2xl shadow-secondary/30 hover:scale-105 transition-transform">
+                  Ver jogos <Calendar className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            )}
+            <Link to="/ranking">
+              <Button size="lg" variant="ghost" className="text-lg px-8 h-14 text-primary-foreground hover:bg-primary-foreground/10 border border-primary-foreground/20">
+                Ver ranking <Trophy className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-          ) : (
-            <Link to="/games">
-              <Button size="lg" variant="secondary" className="text-lg px-8">
-                Ver jogos <Calendar className="ml-2 h-5 w-5" />
-              </Button>
-            </Link>
-          )}
+          </div>
+
+          {/* Stats strip */}
+          <div className="mt-14 grid grid-cols-3 gap-4 max-w-2xl mx-auto">
+            {[
+              { n: "104", l: "Jogos" },
+              { n: "48", l: "Seleções" },
+              { n: "1", l: "Campeão" },
+            ].map((s) => (
+              <div key={s.l} className="rounded-2xl bg-primary-foreground/5 backdrop-blur-sm border border-primary-foreground/10 py-4 px-2">
+                <div className="text-3xl md:text-4xl font-black text-secondary" style={{ fontFamily: "'Outfit', sans-serif" }}>{s.n}</div>
+                <div className="text-xs uppercase tracking-widest opacity-70 mt-1">{s.l}</div>
+              </div>
+            ))}
+          </div>
         </div>
+
+        {/* Wave separator */}
+        <svg className="absolute bottom-0 left-0 right-0 w-full h-12 text-background" viewBox="0 0 1440 60" preserveAspectRatio="none" fill="currentColor">
+          <path d="M0,40 C360,80 720,0 1440,40 L1440,60 L0,60 Z" />
+        </svg>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 py-10 grid md:grid-cols-2 gap-8">
+      <div className="max-w-6xl mx-auto px-4 py-12 grid md:grid-cols-2 gap-6">
         {/* Next Matches */}
-        <Card>
+        <Card className="relative overflow-hidden border-2 hover:border-primary/30 transition-colors shadow-lg hover:shadow-xl">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-primary/60 to-transparent" />
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Calendar className="h-6 w-6 text-primary" />
-              PRÓXIMOS JOGOS
+            <CardTitle className="text-2xl flex items-center gap-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Calendar className="h-5 w-5 text-primary" />
+              </div>
+              Próximos jogos
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -138,11 +182,14 @@ export default function Index() {
         </Card>
 
         {/* Ranking */}
-        <Card>
+        <Card className="relative overflow-hidden border-2 hover:border-secondary/40 transition-colors shadow-lg hover:shadow-xl">
+          <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-secondary via-secondary/60 to-transparent" />
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Trophy className="h-6 w-6 text-secondary" />
-              RANKING
+            <CardTitle className="text-2xl flex items-center gap-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <div className="p-2 rounded-xl bg-secondary/15">
+                <Trophy className="h-5 w-5 text-secondary-foreground" />
+              </div>
+              Ranking
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -170,34 +217,60 @@ export default function Index() {
         </Card>
 
         {/* How it works */}
-        <Card className="md:col-span-2">
+        <Card className="md:col-span-2 relative overflow-hidden border-2 shadow-lg bg-gradient-to-br from-card to-muted/30">
+          <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
           <CardHeader>
-            <CardTitle className="text-2xl flex items-center gap-2">
-              <Users className="h-6 w-6 text-primary" />
-              COMO FUNCIONA
+            <CardTitle className="text-3xl flex items-center gap-3" style={{ fontFamily: "'Outfit', sans-serif" }}>
+              <div className="p-2 rounded-xl bg-primary/10">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+              Como funciona
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid sm:grid-cols-3 gap-6 text-center">
-              <div className="space-y-2">
-                <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto text-xl font-bold">1</div>
-                <h3 className="font-semibold text-lg">Cadastre-se</h3>
-                <p className="text-sm text-muted-foreground">Crie sua conta gratuitamente</p>
-              </div>
-              <div className="space-y-2">
-                <div className="w-12 h-12 rounded-full bg-secondary text-secondary-foreground flex items-center justify-center mx-auto text-xl font-bold">2</div>
-                <h3 className="font-semibold text-lg">Faça seus palpites</h3>
-                <p className="text-sm text-muted-foreground">Dê seu placar para cada jogo antes de começar</p>
-              </div>
-              <div className="space-y-2">
-                <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto text-xl font-bold">3</div>
-                <h3 className="font-semibold text-lg">Acompanhe o ranking</h3>
-                <p className="text-sm text-muted-foreground">5 pts (exato), 3 pts (1 placar), 1 pt (resultado)</p>
-              </div>
+            <div className="grid sm:grid-cols-3 gap-6 relative">
+              {[
+                { n: 1, title: "Cadastre-se", desc: "Crie sua conta em segundos. 100% gratuito.", color: "primary" },
+                { n: 2, title: "Faça seus palpites", desc: "Dê seu placar para cada jogo antes do apito inicial.", color: "secondary" },
+                { n: 3, title: "Suba no ranking", desc: "5 pts placar exato · 3 pts um time · 1 pt resultado.", color: "primary" },
+              ].map((step) => (
+                <div key={step.n} className="relative group">
+                  <div className="absolute -top-4 -left-2 text-8xl font-black opacity-[0.07] select-none" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                    {step.n}
+                  </div>
+                  <div className="relative space-y-3 p-5 rounded-2xl bg-card border hover:shadow-md transition-all hover:-translate-y-1">
+                    <div className={`w-12 h-12 rounded-xl ${step.color === "primary" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"} flex items-center justify-center text-xl font-black shadow-lg`}>
+                      {step.n}
+                    </div>
+                    <h3 className="font-bold text-lg" style={{ fontFamily: "'Outfit', sans-serif" }}>{step.title}</h3>
+                    <p className="text-sm text-muted-foreground leading-relaxed">{step.desc}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* CTA Footer band */}
+      {!user && (
+        <section className="relative overflow-hidden bg-gradient-to-r from-secondary via-accent to-secondary text-secondary-foreground py-12 px-4 mt-8">
+          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "repeating-linear-gradient(45deg, transparent, transparent 12px, hsl(var(--secondary-foreground)/0.3) 12px, hsl(var(--secondary-foreground)/0.3) 13px)" }} />
+          <div className="relative max-w-4xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-center md:text-left">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-black mb-1" style={{ fontFamily: "'Outfit', sans-serif" }}>
+                Pronto pra entrar no jogo?
+              </h2>
+              <p className="text-lg opacity-90">A Copa começa em breve. Não fique de fora.</p>
+            </div>
+            <Link to="/auth">
+              <Button size="lg" variant="default" className="bg-foreground text-background hover:bg-foreground/90 text-lg px-10 h-14 shadow-2xl">
+                Criar conta grátis <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
+          </div>
+        </section>
+      )}
     </Layout>
   );
 }
