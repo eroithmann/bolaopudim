@@ -167,8 +167,10 @@ serve(async (req) => {
       }
     }
 
-    // Delete only World Cup group stage matches (preserve test/manual matches)
-    const { data: deleted } = await supabase.from("matches").delete().eq("phase", "groups").like("group_name", "Grupo %").select("id");
+    // Delete ALL group stage matches before reseeding (preserve test/manual matches in other phases).
+    // We previously filtered by group_name LIKE 'Grupo %', which left behind rows from older runs
+    // that used a different group_name (e.g. 'Champions League QF'), causing duplicates.
+    const { data: deleted } = await supabase.from("matches").delete().eq("phase", "groups").select("id");
     const matchesDeleted = deleted?.length || 0;
 
     // Build all match rows
