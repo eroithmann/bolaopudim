@@ -152,7 +152,7 @@ serve(async (req) => {
       const groupName = firstMatch ? `Grupo ${firstMatch.group}` : null;
 
       if (!teamsByCode.has(code)) {
-        teamsToCreate.push({ name, code, group_name: groupName! });
+        teamsToCreate.push({ name: playoffDisplayNames[code] ?? name, code, group_name: groupName! });
       } else if (groupName) {
         teamGroupUpdates.push({ code, group_name: groupName });
       }
