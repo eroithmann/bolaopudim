@@ -58,9 +58,15 @@ export default function Profile() {
       data.forEach((p: any) => {
         const pts = p.points || 0;
         total += pts;
-        if (pts === 5) exact++;
-        else if (pts === 3) partial++;
-        else if (pts === 1) results++;
+        const m = p.matches;
+        if (!m || m.status !== "finished" || m.home_score == null || m.away_score == null) return;
+        const isExact = p.home_score === m.home_score && p.away_score === m.away_score;
+        const pDiff = p.home_score - p.away_score;
+        const rDiff = m.home_score - m.away_score;
+        const sameResult = Math.sign(pDiff) === Math.sign(rDiff);
+        if (isExact) exact++;
+        else if (sameResult && pDiff === rDiff && pDiff !== 0) partial++;
+        else if (sameResult) results++;
       });
       setStats({ total, exact, partial, results });
     }
