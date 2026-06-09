@@ -159,8 +159,7 @@ export default function Profile() {
                       </span>
                       <span className="mx-2 font-medium">{p.home_score} - {p.away_score}</span>
                       {p.points !== null && (
-                        <Badge variant={p.points >= 3 ? "default" : p.points === 2 ? "secondary" : p.points === 1 ? "outline" : "destructive"} className="text-xs">
-                        {p.points >= 3 && p.points > 3 ? "" : null}
+                        <Badge variant={p.points && p.points >= 3 ? "default" : p.points === 2 ? "secondary" : p.points === 1 ? "outline" : "destructive"} className="text-xs">
                           {p.points} pts
                         </Badge>
                       )}
