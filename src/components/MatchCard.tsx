@@ -90,10 +90,9 @@ export default function MatchCard({
 
   const getPointsBadge = (points: number | null) => {
     if (points === null) return null;
-    if (points === 5) return <Badge className="bg-primary text-primary-foreground">5 pts - Exato!</Badge>;
-    if (points === 3) return <Badge variant="secondary">3 pts</Badge>;
-    if (points === 1) return <Badge variant="outline">1 pt</Badge>;
-    return <Badge variant="destructive">0 pts</Badge>;
+    if (points === 0) return <Badge variant="destructive">0 pts</Badge>;
+    const label = `${points} pt${points === 1 ? "" : "s"}`;
+    return <Badge className="bg-primary text-primary-foreground">{label}</Badge>;
   };
 
   return (
