@@ -79,11 +79,25 @@ export default function Ranking() {
 
     const sorted = Object.values(grouped).sort((a, b) => {
       if (b.total_points !== a.total_points) return b.total_points - a.total_points;
-      return b.exact_scores - a.exact_scores;
+      return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
     });
     setRanking(sorted);
     setLoading(false);
   };
+
+  // Posição com empate: mesmos pontos = mesma posição
+  const getPosition = (i: number) =>
+    i > 0 && ranking[i].total_points === ranking[i - 1].total_points
+      ? null
+      : i + 1;
+  const positions = ranking.map((_, i) => {
+    let pos = i + 1;
+    for (let j = i - 1; j >= 0; j--) {
+      if (ranking[j].total_points === ranking[i].total_points) pos = j + 1;
+      else break;
+    }
+    return pos;
+  });
 
   const getMedalColor = (pos: number) => {
     if (pos === 0) return "text-yellow-500";
