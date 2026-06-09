@@ -10,7 +10,7 @@ interface RankingEntry {
   name: string | null;
   total_points: number;
   exact_scores: number;
-  partial_scores: number;
+  goal_diff: number;
   results_only: number;
 }
 
@@ -27,17 +27,22 @@ export default function Ranking() {
       .from("profiles")
       .select("user_id, name");
 
-    // Only fetch predictions for finished matches
+    // Only fetch finished matches with scores
     const { data: finishedMatches } = await supabase
       .from("matches")
-      .select("id")
-      .eq("status", "finished");
+      .select("id, home_score, away_score")
+      .eq("status", "finished")
+      .not("home_score", "is", null)
+      .not("away_score", "is", null);
 
-    const finishedIds = new Set((finishedMatches || []).map((m: any) => m.id));
+    const matchById = new Map<string, { home_score: number; away_score: number }>();
+    (finishedMatches || []).forEach((m: any) => {
+      matchById.set(m.id, { home_score: m.home_score, away_score: m.away_score });
+    });
 
     const { data: predictions } = await supabase
       .from("predictions")
-      .select("user_id, match_id, points")
+      .select("user_id, match_id, home_score, away_score, points")
       .not("points", "is", null);
 
     const grouped: Record<string, RankingEntry> = {};
@@ -49,7 +54,7 @@ export default function Ranking() {
           name: p.name,
           total_points: 0,
           exact_scores: 0,
-          partial_scores: 0,
+          goal_diff: 0,
           results_only: 0,
         };
       });
@@ -58,12 +63,17 @@ export default function Ranking() {
     if (predictions) {
       predictions.forEach((p: any) => {
         if (!grouped[p.user_id]) return;
-        if (!finishedIds.has(p.match_id)) return; // Skip non-finished matches
+        const m = matchById.get(p.match_id);
+        if (!m) return;
         const pts = p.points || 0;
         grouped[p.user_id].total_points += pts;
-        if (pts === 5) grouped[p.user_id].exact_scores++;
-        else if (pts === 3) grouped[p.user_id].partial_scores++;
-        else if (pts === 1) grouped[p.user_id].results_only++;
+        const exact = p.home_score === m.home_score && p.away_score === m.away_score;
+        const pDiff = p.home_score - p.away_score;
+        const rDiff = m.home_score - m.away_score;
+        const sameResult = Math.sign(pDiff) === Math.sign(rDiff);
+        if (exact) grouped[p.user_id].exact_scores++;
+        else if (sameResult && pDiff === rDiff && pDiff !== 0) grouped[p.user_id].goal_diff++;
+        else if (sameResult) grouped[p.user_id].results_only++;
       });
     }
 
@@ -103,7 +113,7 @@ export default function Ranking() {
                     <TableHead className="w-16">#</TableHead>
                     <TableHead>Jogador</TableHead>
                     <TableHead className="text-center">Exatos</TableHead>
-                    <TableHead className="text-center">Parciais</TableHead>
+                    <TableHead className="text-center">Saldo</TableHead>
                     <TableHead className="text-center">Resultados</TableHead>
                     <TableHead className="text-right">Pontos</TableHead>
                   </TableRow>
@@ -119,7 +129,7 @@ export default function Ranking() {
                       </TableCell>
                       <TableCell className="font-medium">{entry.name || "Anônimo"}</TableCell>
                       <TableCell className="text-center">{entry.exact_scores}</TableCell>
-                      <TableCell className="text-center">{entry.partial_scores}</TableCell>
+                      <TableCell className="text-center">{entry.goal_diff}</TableCell>
                       <TableCell className="text-center">{entry.results_only}</TableCell>
                       <TableCell className="text-right font-bold text-primary text-lg">{entry.total_points}</TableCell>
                     </TableRow>
@@ -134,23 +144,38 @@ export default function Ranking() {
           <CardHeader>
             <CardTitle className="text-xl">SISTEMA DE PONTUAÇÃO</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid sm:grid-cols-4 gap-4 text-center">
-              <div className="p-4 rounded-lg bg-primary/10">
-                <span className="block text-3xl font-bold text-primary">5</span>
-                <span className="text-sm text-muted-foreground">Placar exato</span>
+          <CardContent className="space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">PONTOS BASE</h3>
+              <div className="grid sm:grid-cols-4 gap-4 text-center">
+                <div className="p-4 rounded-lg bg-primary/10">
+                  <span className="block text-3xl font-bold text-primary">3</span>
+                  <span className="text-sm text-muted-foreground">Placar exato</span>
+                </div>
+                <div className="p-4 rounded-lg bg-secondary/20">
+                  <span className="block text-3xl font-bold text-secondary-foreground">2</span>
+                  <span className="text-sm text-muted-foreground">Resultado + saldo de gols</span>
+                </div>
+                <div className="p-4 rounded-lg bg-muted">
+                  <span className="block text-3xl font-bold">1</span>
+                  <span className="text-sm text-muted-foreground">Apenas o resultado</span>
+                </div>
+                <div className="p-4 rounded-lg bg-destructive/10">
+                  <span className="block text-3xl font-bold text-destructive">0</span>
+                  <span className="text-sm text-muted-foreground">Errou tudo</span>
+                </div>
               </div>
-              <div className="p-4 rounded-lg bg-secondary/20">
-                <span className="block text-3xl font-bold text-secondary-foreground">3</span>
-                <span className="text-sm text-muted-foreground">Acertou 1 placar</span>
-              </div>
-              <div className="p-4 rounded-lg bg-muted">
-                <span className="block text-3xl font-bold">1</span>
-                <span className="text-sm text-muted-foreground">Acertou resultado</span>
-              </div>
-              <div className="p-4 rounded-lg bg-destructive/10">
-                <span className="block text-3xl font-bold text-destructive">0</span>
-                <span className="text-sm text-muted-foreground">Errou tudo</span>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">MULTIPLICADOR POR FASE</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-center">
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x1</span><span className="text-xs text-muted-foreground">1ª fase</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x2</span><span className="text-xs text-muted-foreground">2ª fase</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x3</span><span className="text-xs text-muted-foreground">Oitavas</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x4</span><span className="text-xs text-muted-foreground">Quartas</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x5</span><span className="text-xs text-muted-foreground">Semi</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x2</span><span className="text-xs text-muted-foreground">3º lugar</span></div>
+                <div className="p-3 rounded-lg bg-primary/10"><span className="block text-xl font-bold text-primary">x6</span><span className="text-xs text-muted-foreground">Final</span></div>
               </div>
             </div>
           </CardContent>

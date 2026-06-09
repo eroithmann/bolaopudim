@@ -58,9 +58,15 @@ export default function Profile() {
       data.forEach((p: any) => {
         const pts = p.points || 0;
         total += pts;
-        if (pts === 5) exact++;
-        else if (pts === 3) partial++;
-        else if (pts === 1) results++;
+        const m = p.matches;
+        if (!m || m.status !== "finished" || m.home_score == null || m.away_score == null) return;
+        const isExact = p.home_score === m.home_score && p.away_score === m.away_score;
+        const pDiff = p.home_score - p.away_score;
+        const rDiff = m.home_score - m.away_score;
+        const sameResult = Math.sign(pDiff) === Math.sign(rDiff);
+        if (isExact) exact++;
+        else if (sameResult && pDiff === rDiff && pDiff !== 0) partial++;
+        else if (sameResult) results++;
       });
       setStats({ total, exact, partial, results });
     }
@@ -133,7 +139,7 @@ export default function Profile() {
                 </div>
                 <div className="p-3 rounded-lg bg-secondary/20">
                   <span className="block text-2xl font-bold">{stats.partial}</span>
-                  <span className="text-xs text-muted-foreground">Parciais</span>
+                  <span className="text-xs text-muted-foreground">Saldo</span>
                 </div>
                 <div className="p-3 rounded-lg bg-muted">
                   <span className="block text-2xl font-bold">{stats.results}</span>
@@ -153,7 +159,7 @@ export default function Profile() {
                       </span>
                       <span className="mx-2 font-medium">{p.home_score} - {p.away_score}</span>
                       {p.points !== null && (
-                        <Badge variant={p.points === 5 ? "default" : p.points === 3 ? "secondary" : p.points === 1 ? "outline" : "destructive"} className="text-xs">
+                        <Badge variant={p.points && p.points >= 3 ? "default" : p.points === 2 ? "secondary" : p.points === 1 ? "outline" : "destructive"} className="text-xs">
                           {p.points} pts
                         </Badge>
                       )}

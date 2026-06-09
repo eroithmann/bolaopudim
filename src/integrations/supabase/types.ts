@@ -217,6 +217,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      phase_multiplier: { Args: { _phase: string }; Returns: number }
     }
     Enums: {
       app_role: "admin" | "user"
