@@ -113,7 +113,7 @@ export default function Ranking() {
                     <TableHead className="w-16">#</TableHead>
                     <TableHead>Jogador</TableHead>
                     <TableHead className="text-center">Exatos</TableHead>
-                    <TableHead className="text-center">Parciais</TableHead>
+                    <TableHead className="text-center">Saldo</TableHead>
                     <TableHead className="text-center">Resultados</TableHead>
                     <TableHead className="text-right">Pontos</TableHead>
                   </TableRow>
@@ -129,7 +129,7 @@ export default function Ranking() {
                       </TableCell>
                       <TableCell className="font-medium">{entry.name || "Anônimo"}</TableCell>
                       <TableCell className="text-center">{entry.exact_scores}</TableCell>
-                      <TableCell className="text-center">{entry.partial_scores}</TableCell>
+                      <TableCell className="text-center">{entry.goal_diff}</TableCell>
                       <TableCell className="text-center">{entry.results_only}</TableCell>
                       <TableCell className="text-right font-bold text-primary text-lg">{entry.total_points}</TableCell>
                     </TableRow>
@@ -144,23 +144,38 @@ export default function Ranking() {
           <CardHeader>
             <CardTitle className="text-xl">SISTEMA DE PONTUAÇÃO</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid sm:grid-cols-4 gap-4 text-center">
-              <div className="p-4 rounded-lg bg-primary/10">
-                <span className="block text-3xl font-bold text-primary">5</span>
-                <span className="text-sm text-muted-foreground">Placar exato</span>
+          <CardContent className="space-y-6">
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">PONTOS BASE</h3>
+              <div className="grid sm:grid-cols-4 gap-4 text-center">
+                <div className="p-4 rounded-lg bg-primary/10">
+                  <span className="block text-3xl font-bold text-primary">3</span>
+                  <span className="text-sm text-muted-foreground">Placar exato</span>
+                </div>
+                <div className="p-4 rounded-lg bg-secondary/20">
+                  <span className="block text-3xl font-bold text-secondary-foreground">2</span>
+                  <span className="text-sm text-muted-foreground">Resultado + saldo de gols</span>
+                </div>
+                <div className="p-4 rounded-lg bg-muted">
+                  <span className="block text-3xl font-bold">1</span>
+                  <span className="text-sm text-muted-foreground">Apenas o resultado</span>
+                </div>
+                <div className="p-4 rounded-lg bg-destructive/10">
+                  <span className="block text-3xl font-bold text-destructive">0</span>
+                  <span className="text-sm text-muted-foreground">Errou tudo</span>
+                </div>
               </div>
-              <div className="p-4 rounded-lg bg-secondary/20">
-                <span className="block text-3xl font-bold text-secondary-foreground">3</span>
-                <span className="text-sm text-muted-foreground">Acertou 1 placar</span>
-              </div>
-              <div className="p-4 rounded-lg bg-muted">
-                <span className="block text-3xl font-bold">1</span>
-                <span className="text-sm text-muted-foreground">Acertou resultado</span>
-              </div>
-              <div className="p-4 rounded-lg bg-destructive/10">
-                <span className="block text-3xl font-bold text-destructive">0</span>
-                <span className="text-sm text-muted-foreground">Errou tudo</span>
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">MULTIPLICADOR POR FASE</h3>
+              <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-center">
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x1</span><span className="text-xs text-muted-foreground">1ª fase</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x2</span><span className="text-xs text-muted-foreground">2ª fase</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x3</span><span className="text-xs text-muted-foreground">Oitavas</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x4</span><span className="text-xs text-muted-foreground">Quartas</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x5</span><span className="text-xs text-muted-foreground">Semi</span></div>
+                <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x2</span><span className="text-xs text-muted-foreground">3º lugar</span></div>
+                <div className="p-3 rounded-lg bg-primary/10"><span className="block text-xl font-bold text-primary">x6</span><span className="text-xs text-muted-foreground">Final</span></div>
               </div>
             </div>
           </CardContent>
