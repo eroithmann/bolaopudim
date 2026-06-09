@@ -232,7 +232,7 @@ export default function Index() {
               {[
                 { n: 1, title: "Cadastre-se", desc: "Crie sua conta em segundos. 100% gratuito.", color: "primary" },
                 { n: 2, title: "Faça seus palpites", desc: "Dê seu placar para cada jogo antes do apito inicial.", color: "secondary" },
-                { n: 3, title: "Suba no ranking", desc: "5 pts placar exato · 3 pts um time · 1 pt resultado.", color: "primary" },
+                { n: 3, title: "Suba no ranking", desc: "3 pts placar exato · 2 pts resultado + saldo · 1 pt só resultado (multiplica por fase).", color: "primary" },
               ].map((step) => (
                 <div key={step.n} className="relative group">
                   <div className="absolute -top-4 -left-2 text-8xl font-black opacity-[0.07] select-none" style={{ fontFamily: "'Outfit', sans-serif" }}>
