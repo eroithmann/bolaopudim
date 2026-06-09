@@ -133,12 +133,15 @@ export default function Ranking() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ranking.map((entry, i) => (
+                  {ranking.map((entry, i) => {
+                    const pos = positions[i];
+                    const medalIdx = pos - 1;
+                    return (
                     <TableRow key={entry.user_id}>
                       <TableCell className="font-bold">
-                        <span className={`flex items-center gap-1 ${getMedalColor(i)}`}>
-                          {i < 3 && <Medal className="h-4 w-4" />}
-                          {i + 1}º
+                        <span className={`flex items-center gap-1 ${getMedalColor(medalIdx)}`}>
+                          {medalIdx < 3 && <Medal className="h-4 w-4" />}
+                          {pos}º
                         </span>
                       </TableCell>
                       <TableCell className="font-medium">{entry.name || "Anônimo"}</TableCell>
@@ -147,7 +150,8 @@ export default function Ranking() {
                       <TableCell className="text-center">{entry.results_only}</TableCell>
                       <TableCell className="text-right font-bold text-primary text-lg">{entry.total_points}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
