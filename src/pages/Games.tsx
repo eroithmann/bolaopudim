@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import MatchCard from "@/components/MatchCard";
 
@@ -213,12 +214,13 @@ export default function Games() {
     setSaving((s) => ({ ...s, [matchId]: false }));
   };
 
-  const matchesByPhase = PHASES.map((phase) => ({
-    ...phase,
-    matches: matches.filter((m) => m.phase === phase.value),
-  })).filter((p) => p.matches.length > 0);
-
-  const defaultTab = matchesByPhase.length > 0 ? matchesByPhase[0].value : "groups";
+  // Agrupa todos os jogos por dia (YYYY-MM-DD)
+  const matchesByDay = matches.reduce<Record<string, MatchWithTeams[]>>((acc, m) => {
+    const key = m.match_date.slice(0, 10);
+    (acc[key] ||= []).push(m);
+    return acc;
+  }, {});
+  const orderedDays = Object.keys(matchesByDay).sort();
 
   return (
     <Layout>
@@ -232,41 +234,46 @@ export default function Games() {
             </CardContent>
           </Card>
         ) : (
-          <Tabs defaultValue={defaultTab}>
-            <TabsList className="mb-4 flex-wrap h-auto">
-              {matchesByPhase.map((phase) => (
-                <TabsTrigger key={phase.value} value={phase.value}>{phase.label}</TabsTrigger>
-              ))}
-            </TabsList>
-
-            {matchesByPhase.map((phase) => (
-              <TabsContent key={phase.value} value={phase.value} className="space-y-3">
-                {phase.matches.map((match) => {
-                  const pred = predictions[match.id];
-                  const edit = editScores[match.id] ?? {
-                    home: pred ? String(pred.home_score) : "",
-                    away: pred ? String(pred.away_score) : "",
-                  };
-
-                  return (
-                    <MatchCard
-                      key={match.id}
-                      match={match}
-                      prediction={pred}
-                      editScore={edit}
-                      saving={!!saving[match.id]}
-                      isLoggedIn={!!user}
-                      odds={odds[match.id] || null}
-                      betDistribution={betDistribution[match.id] || null}
-                      onEditChange={(scores) => setEditScores((s) => ({ ...s, [match.id]: scores }))}
-                      onSave={() => savePrediction(match.id)}
-                    />
-                  );
-                })}
-              </TabsContent>
-            ))}
-          </Tabs>
+          <div className="space-y-8">
+            {orderedDays.map((day) => {
+              const dayDate = parseISO(day + "T12:00:00Z");
+              const label = format(dayDate, "EEEE, d 'de' MMMM", { locale: ptBR });
+              return (
+                <section key={day}>
+                  <div className="sticky top-16 z-10 -mx-4 px-4 py-2 mb-3 bg-background/95 backdrop-blur border-b">
+                    <h2 className="text-lg font-bold capitalize text-primary">
+                      {label}
+                    </h2>
+                  </div>
+                  <div className="space-y-3">
+                    {matchesByDay[day].map((match) => {
+                      const pred = predictions[match.id];
+                      const edit = editScores[match.id] ?? {
+                        home: pred ? String(pred.home_score) : "",
+                        away: pred ? String(pred.away_score) : "",
+                      };
+                      return (
+                        <MatchCard
+                          key={match.id}
+                          match={match}
+                          prediction={pred}
+                          editScore={edit}
+                          saving={!!saving[match.id]}
+                          isLoggedIn={!!user}
+                          odds={odds[match.id] || null}
+                          betDistribution={betDistribution[match.id] || null}
+                          onEditChange={(scores) => setEditScores((s) => ({ ...s, [match.id]: scores }))}
+                          onSave={() => savePrediction(match.id)}
+                        />
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
         )}
+
       </div>
     </Layout>
   );
