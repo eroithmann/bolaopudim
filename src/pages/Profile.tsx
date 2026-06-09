@@ -139,7 +139,7 @@ export default function Profile() {
                 </div>
                 <div className="p-3 rounded-lg bg-secondary/20">
                   <span className="block text-2xl font-bold">{stats.partial}</span>
-                  <span className="text-xs text-muted-foreground">Parciais</span>
+                  <span className="text-xs text-muted-foreground">Saldo</span>
                 </div>
                 <div className="p-3 rounded-lg bg-muted">
                   <span className="block text-2xl font-bold">{stats.results}</span>
