@@ -79,11 +79,25 @@ export default function Ranking() {
 
     const sorted = Object.values(grouped).sort((a, b) => {
       if (b.total_points !== a.total_points) return b.total_points - a.total_points;
-      return b.exact_scores - a.exact_scores;
+      return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
     });
     setRanking(sorted);
     setLoading(false);
   };
+
+  // Posição com empate: mesmos pontos = mesma posição
+  const getPosition = (i: number) =>
+    i > 0 && ranking[i].total_points === ranking[i - 1].total_points
+      ? null
+      : i + 1;
+  const positions = ranking.map((_, i) => {
+    let pos = i + 1;
+    for (let j = i - 1; j >= 0; j--) {
+      if (ranking[j].total_points === ranking[i].total_points) pos = j + 1;
+      else break;
+    }
+    return pos;
+  });
 
   const getMedalColor = (pos: number) => {
     if (pos === 0) return "text-yellow-500";
@@ -119,12 +133,15 @@ export default function Ranking() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {ranking.map((entry, i) => (
+                  {ranking.map((entry, i) => {
+                    const pos = positions[i];
+                    const medalIdx = pos - 1;
+                    return (
                     <TableRow key={entry.user_id}>
                       <TableCell className="font-bold">
-                        <span className={`flex items-center gap-1 ${getMedalColor(i)}`}>
-                          {i < 3 && <Medal className="h-4 w-4" />}
-                          {i + 1}º
+                        <span className={`flex items-center gap-1 ${getMedalColor(medalIdx)}`}>
+                          {medalIdx < 3 && <Medal className="h-4 w-4" />}
+                          {pos}º
                         </span>
                       </TableCell>
                       <TableCell className="font-medium">{entry.name || "Anônimo"}</TableCell>
@@ -133,7 +150,8 @@ export default function Ranking() {
                       <TableCell className="text-center">{entry.results_only}</TableCell>
                       <TableCell className="text-right font-bold text-primary text-lg">{entry.total_points}</TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             )}
