@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { format, parseISO } from "date-fns";
+import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import MatchCard from "@/components/MatchCard";
 
