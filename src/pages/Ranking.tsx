@@ -85,11 +85,7 @@ export default function Ranking() {
     setLoading(false);
   };
 
-  // Posição com empate: mesmos pontos = mesma posição
-  const getPosition = (i: number) =>
-    i > 0 && ranking[i].total_points === ranking[i - 1].total_points
-      ? null
-      : i + 1;
+  // Posição com empate: mesmos pontos = mesma posição (1,1,3...)
   const positions = ranking.map((_, i) => {
     let pos = i + 1;
     for (let j = i - 1; j >= 0; j--) {
