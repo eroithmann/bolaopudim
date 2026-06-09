@@ -10,7 +10,7 @@ interface RankingEntry {
   name: string | null;
   total_points: number;
   exact_scores: number;
-  partial_scores: number;
+  goal_diff: number;
   results_only: number;
 }
 
