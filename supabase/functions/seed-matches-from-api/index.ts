@@ -107,6 +107,16 @@ const teamNameToCode: Record<string, string> = {
   "Argentina": "ARG", "Algeria": "ALG", "Austria": "AUT", "Jordan": "JOR",
   "Portugal": "POR", "Uzbekistan": "UZB", "Colombia": "COL",
   "England": "ENG", "Croatia": "CRO", "Ghana": "GHA", "Panama": "PAN",
+  // Repescagem (placeholders) — serão definidos após os playoffs intercontinentais
+  "Playoff Winner A": "PWA", "Playoff Winner B": "PWB",
+  "Playoff Winner C": "PWC", "Playoff Winner D": "PWD",
+  "Playoff Winner 1": "PW1", "Playoff Winner 2": "PW2",
+};
+
+const playoffDisplayNames: Record<string, string> = {
+  "PWA": "Repescagem A", "PWB": "Repescagem B",
+  "PWC": "Repescagem C", "PWD": "Repescagem D",
+  "PW1": "Repescagem 1", "PW2": "Repescagem 2",
 };
 
 serve(async (req) => {
