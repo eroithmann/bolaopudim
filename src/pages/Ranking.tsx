@@ -27,17 +27,22 @@ export default function Ranking() {
       .from("profiles")
       .select("user_id, name");
 
-    // Only fetch predictions for finished matches
+    // Only fetch finished matches with scores
     const { data: finishedMatches } = await supabase
       .from("matches")
-      .select("id")
-      .eq("status", "finished");
+      .select("id, home_score, away_score")
+      .eq("status", "finished")
+      .not("home_score", "is", null)
+      .not("away_score", "is", null);
 
-    const finishedIds = new Set((finishedMatches || []).map((m: any) => m.id));
+    const matchById = new Map<string, { home_score: number; away_score: number }>();
+    (finishedMatches || []).forEach((m: any) => {
+      matchById.set(m.id, { home_score: m.home_score, away_score: m.away_score });
+    });
 
     const { data: predictions } = await supabase
       .from("predictions")
-      .select("user_id, match_id, points")
+      .select("user_id, match_id, home_score, away_score, points")
       .not("points", "is", null);
 
     const grouped: Record<string, RankingEntry> = {};
@@ -49,7 +54,7 @@ export default function Ranking() {
           name: p.name,
           total_points: 0,
           exact_scores: 0,
-          partial_scores: 0,
+          goal_diff: 0,
           results_only: 0,
         };
       });
@@ -58,12 +63,17 @@ export default function Ranking() {
     if (predictions) {
       predictions.forEach((p: any) => {
         if (!grouped[p.user_id]) return;
-        if (!finishedIds.has(p.match_id)) return; // Skip non-finished matches
+        const m = matchById.get(p.match_id);
+        if (!m) return;
         const pts = p.points || 0;
         grouped[p.user_id].total_points += pts;
-        if (pts === 5) grouped[p.user_id].exact_scores++;
-        else if (pts === 3) grouped[p.user_id].partial_scores++;
-        else if (pts === 1) grouped[p.user_id].results_only++;
+        const exact = p.home_score === m.home_score && p.away_score === m.away_score;
+        const pDiff = p.home_score - p.away_score;
+        const rDiff = m.home_score - m.away_score;
+        const sameResult = Math.sign(pDiff) === Math.sign(rDiff);
+        if (exact) grouped[p.user_id].exact_scores++;
+        else if (sameResult && pDiff === rDiff && pDiff !== 0) grouped[p.user_id].goal_diff++;
+        else if (sameResult) grouped[p.user_id].results_only++;
       });
     }
 
