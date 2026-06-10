@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, RefreshCw, Save, Check, Download, TrendingUp } from "lucide-react";
+import PredictionStatus from "@/components/admin/PredictionStatus";
 
 interface MatchRow {
   id: string;
@@ -156,6 +157,9 @@ export default function Admin() {
           </div>
         </div>
 
+        <div className="mb-6">
+          <PredictionStatus />
+        </div>
 
         <Card>
           <CardHeader>
