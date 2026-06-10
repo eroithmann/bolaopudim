@@ -109,6 +109,25 @@ export default function Admin() {
     setSeedingMatches(false);
   };
 
+  const refreshOdds = async () => {
+    setRefreshingOdds(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-odds?refresh=true");
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Erro nas odds", description: data.error, variant: "destructive" });
+      } else {
+        toast({
+          title: "Odds atualizadas!",
+          description: `${data?.refreshed || 0} de ${data?.total || 0} jogos com odds.`,
+        });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar odds", description: err.message, variant: "destructive" });
+    }
+    setRefreshingOdds(false);
+  };
+
   if (loading) return <Layout><div className="p-8 text-center">Carregando...</div></Layout>;
 
   const pastMatches = matches.filter((m) => new Date(m.match_date) <= new Date());
