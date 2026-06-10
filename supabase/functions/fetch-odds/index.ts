@@ -23,10 +23,10 @@ function normalize(s: string): string {
 const aliases: Record<string, string[]> = {
   BRA: ["brazil", "brasil"],
   ARG: ["argentina"],
-  URU: ["uruguay"],
+  URU: ["uruguay", "uruguai"],
   COL: ["colombia"],
-  ECU: ["ecuador"],
-  PAR: ["paraguay"],
+  ECU: ["ecuador", "equador"],
+  PAR: ["paraguay", "paraguai"],
   PER: ["peru"],
   CHI: ["chile"],
   MEX: ["mexico"],
@@ -47,31 +47,61 @@ const aliases: Record<string, string[]> = {
   MAR: ["morocco", "marrocos"],
   SEN: ["senegal"],
   NGA: ["nigeria"],
-  GHA: ["ghana"],
+  GHA: ["ghana", "gana"],
   CMR: ["cameroon", "camaroes"],
   EGY: ["egypt", "egito"],
   TUN: ["tunisia"],
-  CIV: ["ivorycoast", "costadomarfim"],
+  CIV: ["ivorycoast", "costadomarfim", "cotedivoire"],
   RSA: ["southafrica", "africadosul"],
+  CZE: ["czechrepublic", "czechia", "tchequia", "republicatcheca"],
+  BIH: ["bosniaandherzegovina", "bosnia", "bosniaeherzegovina", "bosniaherzegovina"],
+  QAT: ["qatar", "catar"],
+  SUI: ["switzerland", "suica"],
+  KSA: ["saudiarabia", "arabiasaudita"],
+  TUR: ["turkey", "turkiye", "turquia"],
+  NZL: ["newzealand", "novazelandia"],
+  IRN: ["iran", "irniran", "ira"],
+  NOR: ["norway", "noruega"],
+  IRQ: ["iraq", "iraque"],
+  SWE: ["sweden", "suecia"],
+  SCO: ["scotland", "escocia"],
+  HAI: ["haiti"],
+  CUW: ["curacao"],
+  PAN: ["panama"],
+  JOR: ["jordan", "jordania"],
+  ALG: ["algeria", "argelia"],
+  AUT: ["austria"],
+  UZB: ["uzbekistan", "uzbequistao"],
+  CPV: ["capeverde", "caboverde", "capeverdeislands"],
+  COD: ["drcongo", "rdcongo", "congodr", "drcongo", "democraticrepublicofcongo", "congokinshasa"],
+  WAL: ["wales", "paisdegales"],
+  UKR: ["ukraine", "ucrania"],
+  POL: ["poland", "polonia"],
+  DEN: ["denmark", "dinamarca"],
 };
 
 function teamCodeFromName(name: string, teamMap: Map<string, { code: string; name: string }>): string | null {
   const norm = normalize(name);
+  if (!norm) return null;
   // 1) direct against our team names
   for (const [, t] of teamMap) {
     if (normalize(t.name) === norm) return t.code;
   }
-  // 2) alias table
+  // 2) alias table: match if fixture name AND one of our team names fall in the same alias group
   for (const [code, names] of Object.entries(aliases)) {
-    if (names.some((n) => normalize(n) === norm)) {
-      // only return if this code exists in our DB
-      for (const [, t] of teamMap) if (t.code === code) return code;
+    const group = names.map((n) => normalize(n));
+    if (group.includes(norm)) {
+      for (const [, t] of teamMap) {
+        if (t.code === code || group.includes(normalize(t.name))) return t.code;
+      }
     }
   }
-  // 3) partial contains
-  for (const [, t] of teamMap) {
-    const tn = normalize(t.name);
-    if (tn && (norm.includes(tn) || tn.includes(norm))) return t.code;
+  // 3) partial contains (only for longer names, avoids false positives)
+  if (norm.length >= 5) {
+    for (const [, t] of teamMap) {
+      const tn = normalize(t.name);
+      if (tn.length >= 5 && (norm.includes(tn) || tn.includes(norm))) return t.code;
+    }
   }
   return null;
 }
@@ -105,6 +135,41 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const refresh = url.searchParams.get("refresh") === "true";
+  const debug = url.searchParams.get("debug");
+
+  // Debug helpers (temporary)
+  if (debug) {
+    const key = Deno.env.get("RAPIDAPI_KEY")!;
+    try {
+      if (debug === "fixtures") {
+        const date = url.searchParams.get("date")!;
+        const fx = await apiGet(`/football-get-matches-by-date?date=${date}`, key);
+        const list: any[] =
+          fx?.response?.matches || fx?.response || fx?.matches || (Array.isArray(fx) ? fx : []);
+        const names = list.map((f: any) => ({
+          id: f?.id || f?.eventId || f?.fixtureId,
+          home: f?.home?.name || f?.homeTeam?.name || f?.teams?.home?.name || f?.home_team,
+          away: f?.away?.name || f?.awayTeam?.name || f?.teams?.away?.name || f?.away_team,
+          league: f?.leagueName || f?.league?.name || f?.tournament?.name,
+        }));
+        return new Response(JSON.stringify(names), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (debug === "odds") {
+        const eventId = url.searchParams.get("eventid")!;
+        const od = await apiGet(`/football-event-odds?eventid=${eventId}`, key);
+        return new Response(JSON.stringify(od).slice(0, 8000), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
 
   // Default mode: serve odds from cache (zero external calls)
   if (!refresh) {
@@ -166,24 +231,36 @@ serve(async (req) => {
     const logs: string[] = [];
     let upserted = 0;
 
-    for (const [date, dayMatches] of Object.entries(byDate)) {
-      // 1) Get fixtures for this date
-      let fixtures: any;
+    // Fixture cache per API date (API dates can differ from ours due to timezone)
+    const fixturesByDate: Record<string, any[]> = {};
+    const getFixtures = async (date: string): Promise<any[]> => {
+      if (fixturesByDate[date]) return fixturesByDate[date];
       try {
-        fixtures = await apiGet(`/football-get-matches-by-date?date=${date}`, RAPIDAPI_KEY);
+        const fx = await apiGet(`/football-get-matches-by-date?date=${date}`, RAPIDAPI_KEY);
+        const list =
+          fx?.response?.matches || fx?.response || fx?.matches || (Array.isArray(fx) ? fx : []);
+        fixturesByDate[date] = Array.isArray(list) ? list : [];
       } catch (e: any) {
         logs.push(`date ${date}: ${e.message}`);
-        continue;
+        fixturesByDate[date] = [];
       }
+      return fixturesByDate[date];
+    };
+    const shiftDate = (date: string, days: number): string => {
+      const d = new Date(Date.UTC(+date.slice(0, 4), +date.slice(4, 6) - 1, +date.slice(6, 8)));
+      d.setUTCDate(d.getUTCDate() + days);
+      return `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
+    };
 
-      // The API typically returns { status, response: { matches: [...] } } — be defensive
-      const fixtureList: any[] =
-        fixtures?.response?.matches ||
-        fixtures?.response ||
-        fixtures?.matches ||
-        (Array.isArray(fixtures) ? fixtures : []);
+    for (const [date, dayMatches] of Object.entries(byDate)) {
+      // Search the match date plus adjacent days (timezone offsets in the API)
+      const fixtureList: any[] = [
+        ...(await getFixtures(date)),
+        ...(await getFixtures(shiftDate(date, 1))),
+        ...(await getFixtures(shiftDate(date, -1))),
+      ];
 
-      logs.push(`date ${date}: ${fixtureList.length} fixtures, ${dayMatches.length} our matches`);
+      logs.push(`date ${date}: ${fixtureList.length} fixtures (±1d), ${dayMatches.length} our matches`);
 
       for (const m of dayMatches) {
         const home = teamById.get(m.home_team_id);
@@ -213,6 +290,10 @@ serve(async (req) => {
           continue;
         }
 
+        // Was the fixture reversed relative to our match? (home/away swap)
+        const fhName = fx?.home?.name || fx?.homeTeam?.name || fx?.teams?.home?.name || fx?.home_team || "";
+        const reversed = teamCodeFromName(String(fhName), teamById) === away.code;
+
         // 2) Get odds for this event
         let oddsData: any;
         try {
@@ -222,37 +303,42 @@ serve(async (req) => {
           continue;
         }
 
-        // Try common shapes for 1X2 odds
-        const odds = oddsData?.response || oddsData;
-        // Look for a "Match Result" / "1X2" market
+        // Fotmob shape: response.odds = provider; provider.odds.matchfactMarkets / oddsTabMarkets
+        const provider = oddsData?.response?.odds || oddsData?.odds || {};
+        const inner = provider?.odds || {};
         let homeOdd: number | null = null;
         let drawOdd: number | null = null;
         let awayOdd: number | null = null;
-        let bookmaker = "—";
+        const bookmaker =
+          String(provider?.persistentKey || "").split("_")[0] || provider?.provider || "Bet365";
 
-        const markets =
-          odds?.bettingOdds ||
-          odds?.markets ||
-          odds?.odds ||
-          (Array.isArray(odds) ? odds : []);
-
-        if (Array.isArray(markets)) {
-          for (const mk of markets) {
-            const name = String(mk?.market || mk?.name || mk?.type || "").toLowerCase();
-            if (name.includes("1x2") || name.includes("match result") || name.includes("full time")) {
-              const ods = mk?.odds || mk?.outcomes || mk?.selections || [];
-              for (const o of ods) {
-                const label = String(o?.name || o?.label || o?.type || "").toLowerCase();
-                const price = Number(o?.odd || o?.price || o?.value);
-                if (!isFinite(price)) continue;
-                if (label.includes("home") || label === "1") homeOdd = price;
-                else if (label.includes("draw") || label === "x") drawOdd = price;
-                else if (label.includes("away") || label === "2") awayOdd = price;
-              }
-              bookmaker = mk?.bookmaker || mk?.provider || bookmaker;
-              if (homeOdd && awayOdd) break;
-            }
+        const marketsList: any[] = [];
+        if (Array.isArray(inner?.matchfactMarkets)) marketsList.push(...inner.matchfactMarkets);
+        if (Array.isArray(inner?.oddsTabMarkets)) {
+          for (const cat of inner.oddsTabMarkets) {
+            if (Array.isArray(cat?.markets)) marketsList.push(...cat.markets);
           }
+        }
+
+        for (const mk of marketsList) {
+          const header = String(mk?.header || "").toLowerCase();
+          const tk = String(mk?.headerTranslationKey || "");
+          if (header.includes("full time result") || header.includes("1x2") || tk === "who_will_win") {
+            for (const s of mk?.selections || []) {
+              const label = String(s?.name || "").toLowerCase();
+              const price = Number(s?.oddsDecimal ?? s?.odd ?? s?.price);
+              if (!isFinite(price)) continue;
+              if (label === "1" || label.includes("home")) homeOdd = price;
+              else if (label === "x" || label.includes("draw")) drawOdd = price;
+              else if (label === "2" || label.includes("away")) awayOdd = price;
+            }
+            if (homeOdd && awayOdd) break;
+          }
+        }
+
+        // If the API fixture had home/away swapped relative to our match, swap odds back
+        if (reversed && homeOdd && awayOdd) {
+          [homeOdd, awayOdd] = [awayOdd, homeOdd];
         }
 
         if (homeOdd && awayOdd) {
@@ -271,7 +357,7 @@ serve(async (req) => {
           upserted++;
           logs.push(`  ✓ ${home.code} ${homeOdd} / ${drawOdd ?? "?"} / ${awayOdd} ${away.code}`);
         } else {
-          logs.push(`  no 1X2 found for ${home.code}-${away.code}. Sample: ${JSON.stringify(odds).slice(0, 300)}`);
+          logs.push(`  no 1X2 found for ${home.code}-${away.code}. Sample: ${JSON.stringify(inner).slice(0, 200)}`);
         }
       }
     }
