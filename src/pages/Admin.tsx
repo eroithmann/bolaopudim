@@ -149,6 +149,12 @@ export default function Admin() {
               <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Sincronizando..." : "Buscar Resultados"}
             </Button>
+            <Button onClick={refreshOdds} disabled={refreshingOdds} variant="outline">
+              <TrendingUp className={`h-4 w-4 mr-2 ${refreshingOdds ? "animate-spin" : ""}`} />
+              {refreshingOdds ? "Atualizando..." : "Atualizar Odds"}
+            </Button>
+          </div>
+        </div>
           </div>
         </div>
 
