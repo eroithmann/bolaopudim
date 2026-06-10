@@ -157,6 +157,9 @@ export default function Admin() {
           </div>
         </div>
 
+        <div className="mb-6">
+          <PredictionStatus />
+        </div>
 
         <Card>
           <CardHeader>
