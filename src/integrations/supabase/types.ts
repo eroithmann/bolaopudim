@@ -80,6 +80,54 @@ export type Database = {
           },
         ]
       }
+      prediction_audit: {
+        Row: {
+          action: string
+          changed_at: string
+          changed_by: string | null
+          id: string
+          match_id: string | null
+          new_away_score: number | null
+          new_home_score: number | null
+          new_points: number | null
+          old_away_score: number | null
+          old_home_score: number | null
+          old_points: number | null
+          prediction_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          match_id?: string | null
+          new_away_score?: number | null
+          new_home_score?: number | null
+          new_points?: number | null
+          old_away_score?: number | null
+          old_home_score?: number | null
+          old_points?: number | null
+          prediction_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          changed_at?: string
+          changed_by?: string | null
+          id?: string
+          match_id?: string | null
+          new_away_score?: number | null
+          new_home_score?: number | null
+          new_points?: number | null
+          old_away_score?: number | null
+          old_home_score?: number | null
+          old_points?: number | null
+          prediction_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       predictions: {
         Row: {
           away_score: number
