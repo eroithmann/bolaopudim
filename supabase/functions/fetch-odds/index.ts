@@ -105,6 +105,41 @@ serve(async (req) => {
 
   const url = new URL(req.url);
   const refresh = url.searchParams.get("refresh") === "true";
+  const debug = url.searchParams.get("debug");
+
+  // Debug helpers (temporary)
+  if (debug) {
+    const key = Deno.env.get("RAPIDAPI_KEY")!;
+    try {
+      if (debug === "fixtures") {
+        const date = url.searchParams.get("date")!;
+        const fx = await apiGet(`/football-get-matches-by-date?date=${date}`, key);
+        const list: any[] =
+          fx?.response?.matches || fx?.response || fx?.matches || (Array.isArray(fx) ? fx : []);
+        const names = list.map((f: any) => ({
+          id: f?.id || f?.eventId || f?.fixtureId,
+          home: f?.home?.name || f?.homeTeam?.name || f?.teams?.home?.name || f?.home_team,
+          away: f?.away?.name || f?.awayTeam?.name || f?.teams?.away?.name || f?.away_team,
+          league: f?.leagueName || f?.league?.name || f?.tournament?.name,
+        }));
+        return new Response(JSON.stringify(names), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (debug === "odds") {
+        const eventId = url.searchParams.get("eventid")!;
+        const od = await apiGet(`/football-event-odds?eventid=${eventId}`, key);
+        return new Response(JSON.stringify(od).slice(0, 8000), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+  }
 
   // Default mode: serve odds from cache (zero external calls)
   if (!refresh) {
