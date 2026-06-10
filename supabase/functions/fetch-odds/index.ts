@@ -19,7 +19,7 @@ const nameMap: Record<string, string[]> = {
   BOL: ["bolivia"],
   VEN: ["venezuela"],
   MEX: ["mexico", "méxico"],
-  USA: ["united states", "usa", "us", "estados unidos"],
+  USA: ["united states", "usa", "estados unidos"],
   CAN: ["canada", "canadá"],
   GER: ["germany", "deutschland", "alemania", "alemanha"],
   FRA: ["france", "francia", "frança"],
@@ -102,9 +102,18 @@ const nameMap: Record<string, string[]> = {
 
 function findTeamCode(apiTeamName: string): string | null {
   const normalized = apiTeamName.toLowerCase().trim();
+  // First pass: exact match (preferred, avoids false positives like "Australia" → "us")
   for (const [code, names] of Object.entries(nameMap)) {
-    if (names.some(n => normalized === n || normalized.includes(n) || n.includes(normalized))) {
-      return code;
+    if (names.some(n => normalized === n)) return code;
+  }
+  // Second pass: whole-word containment using word boundaries
+  for (const [code, names] of Object.entries(nameMap)) {
+    for (const n of names) {
+      const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i");
+      if (re.test(normalized) || re.test(n) && new RegExp(`(^|\\W)${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\W|$)`, "i").test(n)) {
+        return code;
+      }
     }
   }
   return null;
@@ -133,7 +142,7 @@ serve(async (req) => {
       .select("id, match_date, status, home_team:teams!matches_home_team_id_fkey(name, code), away_team:teams!matches_away_team_id_fkey(name, code)")
       .eq("status", "scheduled")
       .order("match_date", { ascending: true })
-      .limit(50);
+      .limit(200);
 
     if (!matches || matches.length === 0) {
       return new Response(JSON.stringify({ odds: {} }), {
