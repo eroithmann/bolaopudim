@@ -258,8 +258,9 @@ serve(async (req) => {
 
     return new Response(JSON.stringify({
       success: true,
-      matches_deleted: matchesDeleted,
-      matches_created: inserted?.length || 0,
+      matches_created: matchesCreated,
+      matches_updated: matchesUpdated,
+      matches_removed: matchesRemoved,
       matches_skipped_playoff: matchesSkipped,
       teams_created: teamsCreated,
     }), {
