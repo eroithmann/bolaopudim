@@ -102,9 +102,18 @@ const nameMap: Record<string, string[]> = {
 
 function findTeamCode(apiTeamName: string): string | null {
   const normalized = apiTeamName.toLowerCase().trim();
+  // First pass: exact match (preferred, avoids false positives like "Australia" → "us")
   for (const [code, names] of Object.entries(nameMap)) {
-    if (names.some(n => normalized === n || normalized.includes(n) || n.includes(normalized))) {
-      return code;
+    if (names.some(n => normalized === n)) return code;
+  }
+  // Second pass: whole-word containment using word boundaries
+  for (const [code, names] of Object.entries(nameMap)) {
+    for (const n of names) {
+      const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const re = new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i");
+      if (re.test(normalized) || re.test(n) && new RegExp(`(^|\\W)${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\W|$)`, "i").test(n)) {
+        return code;
+      }
     }
   }
   return null;
