@@ -2,12 +2,13 @@ import { ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Trophy, Home, Calendar, User, Shield, LogOut, Menu, X } from "lucide-react";
+import { Trophy, Home, Calendar, User, Shield, LogOut, Menu, X, Users } from "lucide-react";
 import { useState } from "react";
 
 const navItems = [
   { to: "/", label: "Início", icon: Home },
   { to: "/games", label: "Jogos", icon: Calendar },
+  { to: "/apostas", label: "Apostas da Galera", icon: Users },
   { to: "/ranking", label: "Ranking", icon: Trophy },
 ];
 

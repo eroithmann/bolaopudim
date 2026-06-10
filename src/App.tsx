@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Games from "./pages/Games";
 import Ranking from "./pages/Ranking";
+import PublicBets from "./pages/PublicBets";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/auth" element={<Auth />} />
             <Route path="/games" element={<Games />} />
             <Route path="/ranking" element={<Ranking />} />
+            <Route path="/apostas" element={<PublicBets />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="*" element={<NotFound />} />
