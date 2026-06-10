@@ -82,21 +82,26 @@ const aliases: Record<string, string[]> = {
 
 function teamCodeFromName(name: string, teamMap: Map<string, { code: string; name: string }>): string | null {
   const norm = normalize(name);
+  if (!norm) return null;
   // 1) direct against our team names
   for (const [, t] of teamMap) {
     if (normalize(t.name) === norm) return t.code;
   }
-  // 2) alias table
+  // 2) alias table: match if fixture name AND one of our team names fall in the same alias group
   for (const [code, names] of Object.entries(aliases)) {
-    if (names.some((n) => normalize(n) === norm)) {
-      // only return if this code exists in our DB
-      for (const [, t] of teamMap) if (t.code === code) return code;
+    const group = names.map((n) => normalize(n));
+    if (group.includes(norm)) {
+      for (const [, t] of teamMap) {
+        if (t.code === code || group.includes(normalize(t.name))) return t.code;
+      }
     }
   }
-  // 3) partial contains
-  for (const [, t] of teamMap) {
-    const tn = normalize(t.name);
-    if (tn && (norm.includes(tn) || tn.includes(norm))) return t.code;
+  // 3) partial contains (only for longer names, avoids false positives)
+  if (norm.length >= 5) {
+    for (const [, t] of teamMap) {
+      const tn = normalize(t.name);
+      if (tn.length >= 5 && (norm.includes(tn) || tn.includes(norm))) return t.code;
+    }
   }
   return null;
 }
