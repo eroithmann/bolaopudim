@@ -177,56 +177,90 @@ serve(async (req) => {
       }
     }
 
-    // Delete ALL group stage matches before reseeding (preserve test/manual matches in other phases).
-    // We previously filtered by group_name LIKE 'Grupo %', which left behind rows from older runs
-    // that used a different group_name (e.g. 'Champions League QF'), causing duplicates.
-    const { data: deleted } = await supabase.from("matches").delete().eq("phase", "groups").select("id");
-    const matchesDeleted = deleted?.length || 0;
+    // SAFE UPSERT: NEVER delete matches (would cascade-delete predictions).
+    // For each desired match, update the existing row (by home+away+phase) or insert if missing.
+    const { data: existingMatches } = await supabase
+      .from("matches")
+      .select("id, home_team_id, away_team_id, phase, group_name, status")
+      .eq("phase", "groups");
 
-    // Build all match rows
+    const existingByKey = new Map(
+      (existingMatches || []).map((m: any) => [`${m.home_team_id}|${m.away_team_id}|${m.phase}`, m])
+    );
+
     let matchesSkipped = 0;
-    const matchRows: any[] = [];
+    let matchesCreated = 0;
+    let matchesUpdated = 0;
+    const toInsert: any[] = [];
 
     for (const match of GROUP_STAGE_MATCHES) {
       const homeCode = teamNameToCode[match.home];
       const awayCode = teamNameToCode[match.away];
-
-      if (!homeCode || !awayCode) {
-        matchesSkipped++;
-        continue;
-      }
+      if (!homeCode || !awayCode) { matchesSkipped++; continue; }
 
       const homeTeam = teamsByCode.get(homeCode);
       const awayTeam = teamsByCode.get(awayCode);
-      if (!homeTeam || !awayTeam) {
-        matchesSkipped++;
-        continue;
-      }
+      if (!homeTeam || !awayTeam) { matchesSkipped++; continue; }
 
-      matchRows.push({
-        match_date: match.date,
-        venue: match.venue,
-        phase: "groups",
-        group_name: `Grupo ${match.group}`,
-        home_team_id: homeTeam.id,
-        away_team_id: awayTeam.id,
-        status: "scheduled",
-      });
+      const key = `${homeTeam.id}|${awayTeam.id}|groups`;
+      const existing = existingByKey.get(key);
+
+      if (existing) {
+        // Update only metadata; NEVER touch scores/status if already finished
+        const updates: any = {
+          match_date: match.date,
+          venue: match.venue,
+          group_name: `Grupo ${match.group}`,
+        };
+        const { error: updErr } = await supabase.from("matches").update(updates).eq("id", existing.id);
+        if (updErr) { console.error("Update error:", updErr); continue; }
+        matchesUpdated++;
+        existingByKey.delete(key);
+      } else {
+        toInsert.push({
+          match_date: match.date,
+          venue: match.venue,
+          phase: "groups",
+          group_name: `Grupo ${match.group}`,
+          home_team_id: homeTeam.id,
+          away_team_id: awayTeam.id,
+          status: "scheduled",
+        });
+      }
     }
 
-    // Batch insert all matches
-    const { data: inserted, error: insertError } = await supabase.from("matches").insert(matchRows).select("id");
-    if (insertError) {
-      console.error("Insert error:", insertError);
-      return new Response(JSON.stringify({ error: insertError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (toInsert.length > 0) {
+      const { data: inserted, error: insertError } = await supabase.from("matches").insert(toInsert).select("id");
+      if (insertError) {
+        console.error("Insert error:", insertError);
+        return new Response(JSON.stringify({ error: insertError.message }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      matchesCreated = inserted?.length || 0;
+    }
+
+    // Remove leftover group-phase matches that no longer exist in the schedule,
+    // BUT ONLY if they have no predictions attached (safety guard).
+    let matchesRemoved = 0;
+    for (const leftover of existingByKey.values()) {
+      const { count } = await supabase
+        .from("predictions")
+        .select("id", { count: "exact", head: true })
+        .eq("match_id", leftover.id);
+      if ((count || 0) === 0) {
+        await supabase.from("matches").delete().eq("id", leftover.id);
+        matchesRemoved++;
+      } else {
+        console.log(`Skipped removal of match ${leftover.id} — has ${count} predictions`);
+      }
     }
 
     return new Response(JSON.stringify({
       success: true,
-      matches_deleted: matchesDeleted,
-      matches_created: inserted?.length || 0,
+      matches_created: matchesCreated,
+      matches_updated: matchesUpdated,
+      matches_removed: matchesRemoved,
       matches_skipped_playoff: matchesSkipped,
       teams_created: teamsCreated,
     }), {
