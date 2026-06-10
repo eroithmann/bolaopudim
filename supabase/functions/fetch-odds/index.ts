@@ -216,7 +216,7 @@ serve(async (req) => {
         // 2) Get odds for this event
         let oddsData: any;
         try {
-          oddsData = await apiGet(`/football-get-betting-odds?eventid=${eventId}`, RAPIDAPI_KEY);
+          oddsData = await apiGet(`/football-event-odds?eventid=${eventId}`, RAPIDAPI_KEY);
         } catch (e: any) {
           logs.push(`  odds fail ${home.code}-${away.code}: ${e.message}`);
           continue;
