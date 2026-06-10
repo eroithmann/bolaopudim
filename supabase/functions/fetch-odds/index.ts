@@ -19,7 +19,7 @@ const nameMap: Record<string, string[]> = {
   BOL: ["bolivia"],
   VEN: ["venezuela"],
   MEX: ["mexico", "méxico"],
-  USA: ["united states", "usa", "us", "estados unidos"],
+  USA: ["united states", "usa", "estados unidos"],
   CAN: ["canada", "canadá"],
   GER: ["germany", "deutschland", "alemania", "alemanha"],
   FRA: ["france", "francia", "frança"],
