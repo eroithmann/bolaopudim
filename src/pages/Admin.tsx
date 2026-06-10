@@ -34,6 +34,7 @@ export default function Admin() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [syncing, setSyncing] = useState(false);
   const [seedingMatches, setSeedingMatches] = useState(false);
+  const [refreshingOdds, setRefreshingOdds] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
