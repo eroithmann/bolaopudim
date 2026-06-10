@@ -142,7 +142,7 @@ serve(async (req) => {
       .select("id, match_date, status, home_team:teams!matches_home_team_id_fkey(name, code), away_team:teams!matches_away_team_id_fkey(name, code)")
       .eq("status", "scheduled")
       .order("match_date", { ascending: true })
-      .limit(50);
+      .limit(200);
 
     if (!matches || matches.length === 0) {
       return new Response(JSON.stringify({ odds: {} }), {
