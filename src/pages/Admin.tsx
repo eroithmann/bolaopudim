@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, RefreshCw, Save, Check, Download } from "lucide-react";
+import { Shield, RefreshCw, Save, Check, Download, TrendingUp } from "lucide-react";
 
 interface MatchRow {
   id: string;
