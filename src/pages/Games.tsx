@@ -138,14 +138,20 @@ export default function Games() {
   };
 
   const fetchOdds = async () => {
-    try {
-      const response = await supabase.functions.invoke("fetch-odds");
-      if (response.data?.odds) {
-        setOdds(response.data.odds);
-      }
-    } catch {
-      // Odds are optional, fail silently
-    }
+    const { data } = await supabase
+      .from("odds_cache")
+      .select("match_id, home_odds, draw_odds, away_odds, bookmaker");
+    if (!data) return;
+    const map: Record<string, OddsData> = {};
+    data.forEach((r: any) => {
+      map[r.match_id] = {
+        home: r.home_odds ? Number(r.home_odds) : null,
+        draw: r.draw_odds ? Number(r.draw_odds) : null,
+        away: r.away_odds ? Number(r.away_odds) : null,
+        bookmaker: r.bookmaker,
+      };
+    });
+    setOdds(map);
   };
 
   const fetchBetDistribution = async () => {

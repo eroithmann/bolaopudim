@@ -80,6 +80,50 @@ export type Database = {
           },
         ]
       }
+      odds_cache: {
+        Row: {
+          away_odds: number | null
+          bookmaker: string | null
+          created_at: string
+          draw_odds: number | null
+          fetched_at: string
+          home_odds: number | null
+          match_id: string
+          source: string | null
+          updated_at: string
+        }
+        Insert: {
+          away_odds?: number | null
+          bookmaker?: string | null
+          created_at?: string
+          draw_odds?: number | null
+          fetched_at?: string
+          home_odds?: number | null
+          match_id: string
+          source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          away_odds?: number | null
+          bookmaker?: string | null
+          created_at?: string
+          draw_odds?: number | null
+          fetched_at?: string
+          home_odds?: number | null
+          match_id?: string
+          source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "odds_cache_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prediction_audit: {
         Row: {
           action: string

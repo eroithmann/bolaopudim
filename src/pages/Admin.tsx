@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, RefreshCw, Save, Check, Download } from "lucide-react";
+import { Shield, RefreshCw, Save, Check, Download, TrendingUp } from "lucide-react";
 
 interface MatchRow {
   id: string;
@@ -34,6 +34,7 @@ export default function Admin() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [syncing, setSyncing] = useState(false);
   const [seedingMatches, setSeedingMatches] = useState(false);
+  const [refreshingOdds, setRefreshingOdds] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
@@ -108,6 +109,25 @@ export default function Admin() {
     setSeedingMatches(false);
   };
 
+  const refreshOdds = async () => {
+    setRefreshingOdds(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-odds?refresh=true");
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Erro nas odds", description: data.error, variant: "destructive" });
+      } else {
+        toast({
+          title: "Odds atualizadas!",
+          description: `${data?.refreshed || 0} de ${data?.total || 0} jogos com odds.`,
+        });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar odds", description: err.message, variant: "destructive" });
+    }
+    setRefreshingOdds(false);
+  };
+
   if (loading) return <Layout><div className="p-8 text-center">Carregando...</div></Layout>;
 
   const pastMatches = matches.filter((m) => new Date(m.match_date) <= new Date());
@@ -129,8 +149,13 @@ export default function Admin() {
               <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
               {syncing ? "Sincronizando..." : "Buscar Resultados"}
             </Button>
+            <Button onClick={refreshOdds} disabled={refreshingOdds} variant="outline">
+              <TrendingUp className={`h-4 w-4 mr-2 ${refreshingOdds ? "animate-spin" : ""}`} />
+              {refreshingOdds ? "Atualizando..." : "Atualizar Odds"}
+            </Button>
           </div>
         </div>
+
 
         <Card>
           <CardHeader>

@@ -6,8 +6,21 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Extended name mapping for team matching
-const nameMap: Record<string, string[]> = {
+const API_HOST = "free-api-live-football-data.p.rapidapi.com";
+
+// Normalize team name for fuzzy matching
+function normalize(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\b(fc|cf|sc|afc|club|cd|sad|ud)\b/g, "")
+    .replace(/[^a-z0-9]/g, "")
+    .trim();
+}
+
+// Common team aliases (extend as needed)
+const aliases: Record<string, string[]> = {
   BRA: ["brazil", "brasil"],
   ARG: ["argentina"],
   URU: ["uruguay"],
@@ -16,235 +29,262 @@ const nameMap: Record<string, string[]> = {
   PAR: ["paraguay"],
   PER: ["peru"],
   CHI: ["chile"],
-  BOL: ["bolivia"],
-  VEN: ["venezuela"],
-  MEX: ["mexico", "méxico"],
-  USA: ["united states", "usa", "estados unidos"],
-  CAN: ["canada", "canadá"],
-  GER: ["germany", "deutschland", "alemania", "alemanha"],
-  FRA: ["france", "francia", "frança"],
-  ESP: ["spain", "españa", "espanha"],
+  MEX: ["mexico"],
+  USA: ["unitedstates", "usa", "estadosunidos"],
+  CAN: ["canada"],
+  GER: ["germany", "deutschland", "alemanha"],
+  FRA: ["france", "franca"],
+  ESP: ["spain", "espana", "espanha"],
   ENG: ["england", "inglaterra"],
-  ITA: ["italy", "italia", "itália"],
+  ITA: ["italy", "italia"],
   POR: ["portugal"],
-  NED: ["netherlands", "holland", "holanda", "países baixos"],
-  BEL: ["belgium", "bélgica", "belgique"],
-  CRO: ["croatia", "croácia", "hrvatska"],
-  SRB: ["serbia", "sérvia"],
-  SUI: ["switzerland", "suíça", "schweiz"],
-  DEN: ["denmark", "dinamarca", "danmark"],
-  POL: ["poland", "polônia", "polska"],
-  AUT: ["austria", "áustria", "österreich"],
-  CZE: ["czech republic", "czechia", "república tcheca"],
-  SCO: ["scotland", "escócia"],
-  WAL: ["wales", "gales"],
-  UKR: ["ukraine", "ucrânia"],
-  SWE: ["sweden", "suécia", "sverige"],
-  NOR: ["norway", "noruega", "norge"],
-  TUR: ["turkey", "turquia", "türkiye"],
-  ROU: ["romania", "romênia"],
-  HUN: ["hungary", "hungria"],
-  GRE: ["greece", "grécia"],
-  JPN: ["japan", "japão"],
-  KOR: ["south korea", "korea republic", "coreia do sul", "korea"],
-  AUS: ["australia", "austrália"],
-  KSA: ["saudi arabia", "arábia saudita"],
-  IRN: ["iran", "irã"],
-  QAT: ["qatar", "catar"],
-  IRQ: ["iraq", "iraque"],
-  UZB: ["uzbekistan", "uzbequistão"],
-  MAR: ["morocco", "marrocos", "maroc"],
+  NED: ["netherlands", "holland", "holanda"],
+  BEL: ["belgium", "belgica"],
+  CRO: ["croatia", "croacia"],
+  JPN: ["japan", "japao"],
+  KOR: ["southkorea", "koreareplublic", "korearepublic", "coreiadosul"],
+  AUS: ["australia"],
+  MAR: ["morocco", "marrocos"],
   SEN: ["senegal"],
-  NGA: ["nigeria", "nigéria"],
-  GHA: ["ghana", "gana"],
-  CMR: ["cameroon", "camarões", "cameroun"],
+  NGA: ["nigeria"],
+  GHA: ["ghana"],
+  CMR: ["cameroon", "camaroes"],
   EGY: ["egypt", "egito"],
-  TUN: ["tunisia", "tunísia", "tunisie"],
-  CIV: ["ivory coast", "cote d'ivoire", "costa do marfim"],
-  ALG: ["algeria", "argélia", "algérie"],
-  RSA: ["south africa", "áfrica do sul"],
-  CRC: ["costa rica"],
-  HON: ["honduras"],
-  PAN: ["panama", "panamá"],
-  JAM: ["jamaica"],
-  NZL: ["new zealand", "nova zelândia"],
-  IRL: ["ireland", "republic of ireland", "irlanda"],
-  ISL: ["iceland", "islândia"],
-  FIN: ["finland", "finlândia"],
-  GEO: ["georgia", "geórgia"],
-  ALB: ["albania", "albânia"],
-  BIH: ["bosnia", "bosnia and herzegovina", "bósnia"],
-  MKD: ["north macedonia", "macedônia do norte"],
-  ISR: ["israel"],
-  IDN: ["indonesia", "indonésia"],
-  CHN: ["china"],
-  IND: ["india", "índia"],
-  BHR: ["bahrain", "barein"],
-  JOR: ["jordan", "jordânia"],
-  UAE: ["united arab emirates", "emirados árabes"],
-  COD: ["dr congo", "rd congo"],
-  MLI: ["mali"],
-  BFA: ["burkina faso"],
-  GUI: ["guinea", "guiné"],
-  CPV: ["cape verde", "cabo verde"],
-  MOZ: ["mozambique", "moçambique"],
-  TAN: ["tanzania", "tanzânia"],
-  KEN: ["kenya", "quênia"],
-  ANG: ["angola"],
-  ZAM: ["zambia", "zâmbia"],
-  ZIM: ["zimbabwe", "zimbábue"],
-  NAM: ["namibia", "namíbia"],
-  BEN: ["benin", "benim"],
-  TOG: ["togo"],
-  GAB: ["gabon", "gabão"],
-  EQG: ["equatorial guinea", "guiné equatorial"],
+  TUN: ["tunisia"],
+  CIV: ["ivorycoast", "costadomarfim"],
+  RSA: ["southafrica", "africadosul"],
 };
 
-function findTeamCode(apiTeamName: string): string | null {
-  const normalized = apiTeamName.toLowerCase().trim();
-  // First pass: exact match (preferred, avoids false positives like "Australia" → "us")
-  for (const [code, names] of Object.entries(nameMap)) {
-    if (names.some(n => normalized === n)) return code;
+function teamCodeFromName(name: string, teamMap: Map<string, { code: string; name: string }>): string | null {
+  const norm = normalize(name);
+  // 1) direct against our team names
+  for (const [, t] of teamMap) {
+    if (normalize(t.name) === norm) return t.code;
   }
-  // Second pass: whole-word containment using word boundaries
-  for (const [code, names] of Object.entries(nameMap)) {
-    for (const n of names) {
-      const escaped = n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const re = new RegExp(`(^|\\W)${escaped}(\\W|$)`, "i");
-      if (re.test(normalized) || re.test(n) && new RegExp(`(^|\\W)${normalized.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\W|$)`, "i").test(n)) {
-        return code;
-      }
+  // 2) alias table
+  for (const [code, names] of Object.entries(aliases)) {
+    if (names.some((n) => normalize(n) === norm)) {
+      // only return if this code exists in our DB
+      for (const [, t] of teamMap) if (t.code === code) return code;
     }
+  }
+  // 3) partial contains
+  for (const [, t] of teamMap) {
+    const tn = normalize(t.name);
+    if (tn && (norm.includes(tn) || tn.includes(norm))) return t.code;
   }
   return null;
 }
 
+async function apiGet(path: string, key: string) {
+  const url = `https://${API_HOST}${path}`;
+  const res = await fetch(url, {
+    headers: {
+      "X-RapidAPI-Key": key,
+      "X-RapidAPI-Host": API_HOST,
+    },
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`API ${res.status} on ${path}: ${text.slice(0, 200)}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error(`Invalid JSON from ${path}: ${text.slice(0, 200)}`);
+  }
+}
+
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  );
+
+  const url = new URL(req.url);
+  const refresh = url.searchParams.get("refresh") === "true";
+
+  // Default mode: serve odds from cache (zero external calls)
+  if (!refresh) {
+    const { data } = await supabase
+      .from("odds_cache")
+      .select("match_id, home_odds, draw_odds, away_odds, bookmaker");
+    const oddsMap: Record<string, any> = {};
+    (data || []).forEach((r) => {
+      oddsMap[r.match_id] = {
+        home: r.home_odds ? Number(r.home_odds) : null,
+        draw: r.draw_odds ? Number(r.draw_odds) : null,
+        away: r.away_odds ? Number(r.away_odds) : null,
+        bookmaker: r.bookmaker,
+      };
+    });
+    return new Response(JSON.stringify({ odds: oddsMap, source: "cache" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Refresh mode: fetch from RapidAPI and upsert cache
+  const RAPIDAPI_KEY = Deno.env.get("RAPIDAPI_KEY");
+  if (!RAPIDAPI_KEY) {
+    return new Response(JSON.stringify({ error: "RAPIDAPI_KEY not configured" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 
   try {
-    const ODDS_API_KEY = Deno.env.get("ODDS_API_KEY");
-    if (!ODDS_API_KEY) {
-      return new Response(JSON.stringify({ odds: {} }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Load upcoming scheduled matches (next 10 days) and teams
+    const inTenDays = new Date(Date.now() + 10 * 86400 * 1000).toISOString();
+    const [{ data: matches }, { data: teams }] = await Promise.all([
+      supabase
+        .from("matches")
+        .select("id, match_date, home_team_id, away_team_id")
+        .eq("status", "scheduled")
+        .lte("match_date", inTenDays)
+        .order("match_date", { ascending: true }),
+      supabase.from("teams").select("id, name, code"),
+    ]);
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Fetch scheduled matches
-    const { data: matches } = await supabase
-      .from("matches")
-      .select("id, match_date, status, home_team:teams!matches_home_team_id_fkey(name, code), away_team:teams!matches_away_team_id_fkey(name, code)")
-      .eq("status", "scheduled")
-      .order("match_date", { ascending: true })
-      .limit(200);
+    const teamById = new Map((teams || []).map((t: any) => [t.id, { code: t.code, name: t.name }]));
 
     if (!matches || matches.length === 0) {
-      return new Response(JSON.stringify({ odds: {} }), {
+      return new Response(JSON.stringify({ refreshed: 0, reason: "no upcoming matches" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Step 1: Discover available sports containing "fifa" or "world cup"
-    const sportsUrl = `https://api.the-odds-api.com/v4/sports/?apiKey=${ODDS_API_KEY}`;
-    const sportsRes = await fetch(sportsUrl);
-    let sportKeys: string[] = ["soccer_fifa_world_cup"];
-
-    if (sportsRes.ok) {
-      const sportsData = await sportsRes.json();
-      const relevantSports = sportsData.filter((s: any) => {
-        const title = (s.title || "").toLowerCase();
-        const key = (s.key || "").toLowerCase();
-        return (
-          key.includes("fifa") || key.includes("world_cup") ||
-          title.includes("fifa") || title.includes("world cup") ||
-          key.includes("soccer_international")
-        );
-      });
-      if (relevantSports.length > 0) {
-        sportKeys = relevantSports.map((s: any) => s.key);
-      }
-      console.log("Available relevant sport keys:", sportKeys);
-    } else {
-      await sportsRes.text(); // consume body
+    // Group matches by date (YYYYMMDD)
+    const byDate: Record<string, any[]> = {};
+    for (const m of matches) {
+      const d = new Date(m.match_date);
+      const key = `${d.getUTCFullYear()}${String(d.getUTCMonth() + 1).padStart(2, "0")}${String(d.getUTCDate()).padStart(2, "0")}`;
+      (byDate[key] ||= []).push(m);
     }
 
-    // Step 2: Fetch odds from all relevant sport keys
-    const allOddsEvents: any[] = [];
-    for (const sportKey of sportKeys) {
+    const logs: string[] = [];
+    let upserted = 0;
+
+    for (const [date, dayMatches] of Object.entries(byDate)) {
+      // 1) Get fixtures for this date
+      let fixtures: any;
       try {
-        const oddsUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds/?apiKey=${ODDS_API_KEY}&regions=eu,us,uk&markets=h2h&oddsFormat=decimal`;
-        const oddsRes = await fetch(oddsUrl);
-        if (oddsRes.ok) {
-          const data = await oddsRes.json();
-          console.log(`Sport key ${sportKey}: ${data.length} events found`);
-          allOddsEvents.push(...data);
-        } else {
-          const errText = await oddsRes.text();
-          console.log(`Sport key ${sportKey}: ${oddsRes.status} - ${errText}`);
-        }
-      } catch (e) {
-        console.error(`Error fetching odds for ${sportKey}:`, e);
+        fixtures = await apiGet(`/football-get-matches-by-date?date=${date}`, RAPIDAPI_KEY);
+      } catch (e: any) {
+        logs.push(`date ${date}: ${e.message}`);
+        continue;
       }
-    }
 
-    console.log(`Total odds events collected: ${allOddsEvents.length}`);
+      // The API typically returns { status, response: { matches: [...] } } — be defensive
+      const fixtureList: any[] =
+        fixtures?.response?.matches ||
+        fixtures?.response ||
+        fixtures?.matches ||
+        (Array.isArray(fixtures) ? fixtures : []);
 
-    // Step 3: Match odds to our matches
-    const oddsMap: Record<string, { home: number | null; draw: number | null; away: number | null; bookmaker: string }> = {};
+      logs.push(`date ${date}: ${fixtureList.length} fixtures, ${dayMatches.length} our matches`);
 
-    for (const match of matches) {
-      const homeTeam = (match as any).home_team;
-      const awayTeam = (match as any).away_team;
-      if (!homeTeam || !awayTeam) continue;
+      for (const m of dayMatches) {
+        const home = teamById.get(m.home_team_id);
+        const away = teamById.get(m.away_team_id);
+        if (!home || !away) continue;
 
-      const homeCode = homeTeam.code;
-      const awayCode = awayTeam.code;
+        // Find matching fixture by team names
+        const fx = fixtureList.find((f: any) => {
+          const fhName = f?.home?.name || f?.homeTeam?.name || f?.teams?.home?.name || f?.home_team || "";
+          const faName = f?.away?.name || f?.awayTeam?.name || f?.teams?.away?.name || f?.away_team || "";
+          const fhCode = teamCodeFromName(String(fhName), teamById);
+          const faCode = teamCodeFromName(String(faName), teamById);
+          return (
+            (fhCode === home.code && faCode === away.code) ||
+            (fhCode === away.code && faCode === home.code)
+          );
+        });
 
-      for (const event of allOddsEvents) {
-        const apiHomeCode = findTeamCode(event.home_team);
-        const apiAwayCode = findTeamCode(event.away_team);
+        if (!fx) {
+          logs.push(`  no fixture match for ${home.name} vs ${away.name}`);
+          continue;
+        }
 
-        if (
-          (apiHomeCode === homeCode && apiAwayCode === awayCode) ||
-          (apiHomeCode === awayCode && apiAwayCode === homeCode)
-        ) {
-          const bookmaker = event.bookmakers?.[0];
-          if (bookmaker) {
-            const h2hMarket = bookmaker.markets?.find((m: any) => m.key === "h2h");
-            if (h2hMarket) {
-              const outcomes = h2hMarket.outcomes;
-              const homeOdds = outcomes.find((o: any) => findTeamCode(o.name) === homeCode);
-              const awayOdds = outcomes.find((o: any) => findTeamCode(o.name) === awayCode);
-              const drawOdds = outcomes.find((o: any) => o.name.toLowerCase() === "draw");
+        const eventId = fx?.id || fx?.eventId || fx?.fixtureId || fx?.match_id;
+        if (!eventId) {
+          logs.push(`  no eventId for ${home.name} vs ${away.name}`);
+          continue;
+        }
 
-              oddsMap[match.id] = {
-                home: homeOdds?.price || null,
-                draw: drawOdds?.price || null,
-                away: awayOdds?.price || null,
-                bookmaker: bookmaker.title,
-              };
-              console.log(`Matched odds for ${homeTeam.name} vs ${awayTeam.name} from ${bookmaker.title}`);
+        // 2) Get odds for this event
+        let oddsData: any;
+        try {
+          oddsData = await apiGet(`/football-get-betting-odds?eventid=${eventId}`, RAPIDAPI_KEY);
+        } catch (e: any) {
+          logs.push(`  odds fail ${home.code}-${away.code}: ${e.message}`);
+          continue;
+        }
+
+        // Try common shapes for 1X2 odds
+        const odds = oddsData?.response || oddsData;
+        // Look for a "Match Result" / "1X2" market
+        let homeOdd: number | null = null;
+        let drawOdd: number | null = null;
+        let awayOdd: number | null = null;
+        let bookmaker = "—";
+
+        const markets =
+          odds?.bettingOdds ||
+          odds?.markets ||
+          odds?.odds ||
+          (Array.isArray(odds) ? odds : []);
+
+        if (Array.isArray(markets)) {
+          for (const mk of markets) {
+            const name = String(mk?.market || mk?.name || mk?.type || "").toLowerCase();
+            if (name.includes("1x2") || name.includes("match result") || name.includes("full time")) {
+              const ods = mk?.odds || mk?.outcomes || mk?.selections || [];
+              for (const o of ods) {
+                const label = String(o?.name || o?.label || o?.type || "").toLowerCase();
+                const price = Number(o?.odd || o?.price || o?.value);
+                if (!isFinite(price)) continue;
+                if (label.includes("home") || label === "1") homeOdd = price;
+                else if (label.includes("draw") || label === "x") drawOdd = price;
+                else if (label.includes("away") || label === "2") awayOdd = price;
+              }
+              bookmaker = mk?.bookmaker || mk?.provider || bookmaker;
+              if (homeOdd && awayOdd) break;
             }
           }
-          break;
+        }
+
+        if (homeOdd && awayOdd) {
+          await supabase.from("odds_cache").upsert(
+            {
+              match_id: m.id,
+              home_odds: homeOdd,
+              draw_odds: drawOdd,
+              away_odds: awayOdd,
+              bookmaker,
+              source: "free-api-live-football-data",
+              fetched_at: new Date().toISOString(),
+            },
+            { onConflict: "match_id" }
+          );
+          upserted++;
+          logs.push(`  ✓ ${home.code} ${homeOdd} / ${drawOdd ?? "?"} / ${awayOdd} ${away.code}`);
+        } else {
+          logs.push(`  no 1X2 found for ${home.code}-${away.code}. Sample: ${JSON.stringify(odds).slice(0, 300)}`);
         }
       }
     }
 
-    console.log(`Odds matched for ${Object.keys(oddsMap).length} out of ${matches.length} matches`);
-
-    return new Response(JSON.stringify({ odds: oddsMap }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (error) {
-    console.error("Error fetching odds:", error);
-    return new Response(JSON.stringify({ odds: {} }), {
+    console.log(logs.join("\n"));
+    return new Response(
+      JSON.stringify({ refreshed: upserted, total: matches.length, logs: logs.slice(-30) }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (err: any) {
+    console.error("fetch-odds error", err);
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
