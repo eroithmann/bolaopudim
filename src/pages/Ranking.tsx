@@ -161,14 +161,18 @@ export default function Ranking() {
           <CardContent className="space-y-6">
             <div>
               <h3 className="text-sm font-semibold text-muted-foreground mb-3">PONTOS BASE</h3>
-              <div className="grid sm:grid-cols-4 gap-4 text-center">
+              <div className="grid sm:grid-cols-5 gap-4 text-center">
                 <div className="p-4 rounded-lg bg-primary/10">
-                  <span className="block text-3xl font-bold text-primary">3</span>
+                  <span className="block text-3xl font-bold text-primary">5</span>
                   <span className="text-sm text-muted-foreground">Placar exato</span>
                 </div>
                 <div className="p-4 rounded-lg bg-secondary/20">
-                  <span className="block text-3xl font-bold text-secondary-foreground">2</span>
-                  <span className="text-sm text-muted-foreground">Resultado + saldo de gols</span>
+                  <span className="block text-3xl font-bold text-secondary-foreground">3</span>
+                  <span className="text-sm text-muted-foreground">Saldo de gols certo (ou empate)</span>
+                </div>
+                <div className="p-4 rounded-lg bg-secondary/10">
+                  <span className="block text-3xl font-bold">2</span>
+                  <span className="text-sm text-muted-foreground">Resultado + gols de um lado</span>
                 </div>
                 <div className="p-4 rounded-lg bg-muted">
                   <span className="block text-3xl font-bold">1</span>
