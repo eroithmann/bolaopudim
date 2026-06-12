@@ -122,10 +122,10 @@ export default function Ranking() {
                   <TableRow>
                     <TableHead className="w-16">#</TableHead>
                     <TableHead>Jogador</TableHead>
+                    <TableHead className="text-center">Pontos</TableHead>
                     <TableHead className="text-center">Exatos</TableHead>
                     <TableHead className="text-center">Saldo</TableHead>
                     <TableHead className="text-center">Resultados</TableHead>
-                    <TableHead className="text-right">Pontos</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -141,10 +141,10 @@ export default function Ranking() {
                         </span>
                       </TableCell>
                       <TableCell className="font-medium">{entry.name || "Anônimo"}</TableCell>
+                      <TableCell className="text-center font-bold text-primary text-lg">{entry.total_points}</TableCell>
                       <TableCell className="text-center">{entry.exact_scores}</TableCell>
                       <TableCell className="text-center">{entry.goal_diff}</TableCell>
                       <TableCell className="text-center">{entry.results_only}</TableCell>
-                      <TableCell className="text-right font-bold text-primary text-lg">{entry.total_points}</TableCell>
                     </TableRow>
                     );
                   })}
