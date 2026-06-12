@@ -82,7 +82,22 @@ export default function Admin() {
     try {
       const { data, error } = await supabase.functions.invoke("fetch-match-results");
       if (error) throw error;
-      toast({ title: "Sincronização concluída!", description: `${data?.updated || 0} jogos atualizados.` });
+      const updated = data?.updated || 0;
+      const checked = data?.pending_checked || 0;
+      const unmatched: { game: string; reason: string }[] = data?.unmatched || [];
+
+      let description = `${updated} de ${checked} jogos atualizados.`;
+      if (unmatched.length > 0) {
+        const sample = unmatched.slice(0, 3).map((u) => `• ${u.game}: ${u.reason}`).join("\n");
+        const more = unmatched.length > 3 ? `\n…e mais ${unmatched.length - 3}` : "";
+        description += `\nNão encontrados:\n${sample}${more}`;
+      }
+      toast({
+        title: updated > 0 ? "Sincronização concluída!" : "Nenhum resultado novo",
+        description,
+        variant: unmatched.length > 0 && updated === 0 ? "destructive" : "default",
+      });
+      console.log("[sync] response:", data);
       fetchMatches();
     } catch (err: any) {
       toast({ title: "Erro na sincronização", description: err.message || "Verifique a API key", variant: "destructive" });
