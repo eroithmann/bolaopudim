@@ -1,0 +1,1 @@
+UPDATE public.matches SET home_score=2, away_score=1, status='finished', result_source='manual' WHERE id='2561cfa4-41a2-4bb5-945e-d04adb07b3a7';
