@@ -6,41 +6,41 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Aliases map: canonical DB name → all possible API names (lowercase, full strings only)
-// IMPORTANT: Use EXACT full strings, never substrings. No includes() matching.
+/**
+ * Aliases map: canonical DB name → additional possible API names (lowercase).
+ * Normalization (accents/punctuation/suffix stripping) is applied to BOTH sides,
+ * so you usually only need to add aliases that are semantically different
+ * (e.g. translations: "Alemanha" ↔ "germany").
+ */
 const teamAliases: Record<string, string[]> = {
   // Club teams (test)
-  "Sporting CP": ["sporting cp", "sporting clube de portugal", "sporting lisbon"],
-  "Arsenal": ["arsenal", "arsenal fc"],
-  "Real Madrid": ["real madrid", "real madrid cf"],
-  "Bayern Munich": ["bayern munich", "bayern münchen", "fc bayern münchen", "fc bayern munich", "bayern munchen"],
-  "Barcelona": ["barcelona", "fc barcelona", "barça"],
-  "Atlético de Madrid": ["atletico madrid", "atlético de madrid", "atlético madrid", "atletico de madrid", "club atlético de madrid", "club atletico de madrid"],
-  "Borussia Dortmund": ["borussia dortmund", "bvb 09 borussia dortmund", "bvb"],
-  "Inter Milan": ["inter milan", "fc internazionale milano", "internazionale"],
-  "Liverpool": ["liverpool", "liverpool fc"],
-  "Paris Saint-Germain": ["paris saint-germain", "paris saint-germain fc", "paris sg", "psg"],
+  "Sporting CP": ["sporting clube de portugal", "sporting lisbon"],
+  "Real Madrid": ["real madrid cf"],
+  "Bayern Munich": ["bayern munchen", "fc bayern munchen"],
+  "Barcelona": ["fc barcelona", "barca"],
+  "Atlético de Madrid": ["atletico madrid", "club atletico de madrid"],
+  "Borussia Dortmund": ["bvb 09 borussia dortmund", "bvb"],
+  "Inter Milan": ["fc internazionale milano", "internazionale"],
+  "Paris Saint-Germain": ["paris sg", "psg"],
   // World Cup 2026 national teams
-  "Brasil": ["brazil", "brasil"],
-  "Argentina": ["argentina"],
+  "Brasil": ["brazil"],
   "Alemanha": ["germany", "deutschland"],
   "França": ["france", "francia"],
-  "Espanha": ["spain", "españa"],
+  "Espanha": ["spain", "espana"],
   "Inglaterra": ["england"],
-  "Portugal": ["portugal"],
   "Holanda": ["netherlands", "holland", "nederland"],
-  "Bélgica": ["belgium", "belgique", "belgië"],
+  "Bélgica": ["belgium", "belgique", "belgie"],
   "Croácia": ["croatia", "hrvatska"],
   "Uruguai": ["uruguay"],
   "Colômbia": ["colombia"],
-  "México": ["mexico", "méxico"],
-  "Estados Unidos": ["united states", "usa", "united states of america"],
+  "México": ["mexico"],
+  "Estados Unidos": ["united states", "usa", "united states of america", "us"],
   "Canadá": ["canada"],
   "Japão": ["japan"],
   "Coreia do Sul": ["south korea", "korea republic", "republic of korea", "korea, republic of"],
   "Austrália": ["australia"],
   "Arábia Saudita": ["saudi arabia"],
-  "Irã": ["iran", "ir iran", "iran, islamic republic of"],
+  "Irã": ["iran", "ir iran", "iran islamic republic of"],
   "Marrocos": ["morocco", "maroc"],
   "Senegal": ["senegal"],
   "Gana": ["ghana"],
@@ -48,7 +48,7 @@ const teamAliases: Record<string, string[]> = {
   "Nigéria": ["nigeria"],
   "Egito": ["egypt"],
   "Tunísia": ["tunisia", "tunisie"],
-  "Tchéquia": ["czechia", "czech republic", "tchequia"],
+  "Tchéquia": ["czechia", "czech republic"],
   "Eslováquia": ["slovakia"],
   "Eslovênia": ["slovenia"],
   "Romênia": ["romania"],
@@ -57,9 +57,9 @@ const teamAliases: Record<string, string[]> = {
   "País de Gales": ["wales"],
   "Irlanda": ["ireland", "republic of ireland"],
   "Irlanda do Norte": ["northern ireland"],
-  "Costa do Marfim": ["ivory coast", "côte d'ivoire", "cote d'ivoire"],
-  "Argélia": ["algeria", "algérie"],
-  "South Africa": ["south africa"],
+  "Costa do Marfim": ["ivory coast", "cote d ivoire"],
+  "Argélia": ["algeria", "algerie"],
+  "South Africa": ["south africa", "africa do sul"],
   "Cape Verde": ["cape verde", "cabo verde"],
   "Suíça": ["switzerland", "suisse", "schweiz"],
   "Áustria": ["austria"],
@@ -68,128 +68,98 @@ const teamAliases: Record<string, string[]> = {
   "Noruega": ["norway", "norge"],
   "Polônia": ["poland", "polska"],
   "Sérvia": ["serbia", "srbija"],
-  "Turquia": ["turkey", "türkiye"],
+  "Turquia": ["turkey", "turkiye"],
   "Ucrânia": ["ukraine"],
   "Grécia": ["greece", "hellas"],
   "Itália": ["italy", "italia"],
-  "Chile": ["chile"],
-  "Peru": ["peru"],
   "Equador": ["ecuador"],
   "Paraguai": ["paraguay"],
-  "Costa Rica": ["costa rica"],
-  "Jamaica": ["jamaica"],
-  "Panamá": ["panama"],
-  "Haiti": ["haiti"],
-  "Curacao": ["curacao", "curaçao"],
-  "Jordan": ["jordan"],
-  "Uzbekistan": ["uzbekistan"],
+  "Bósnia e Herzegovina": ["bosnia and herzegovina", "bosnia herzegovina", "bosnia-herzegovina", "bosnia", "bosnia y herzegovina"],
+  "RD Congo": ["dr congo", "democratic republic of the congo", "congo dr", "congo democratic republic"],
+  "Iraque": ["iraq"],
   "Nova Zelândia": ["new zealand"],
   "Catar": ["qatar"],
-  "Scotland": ["scotland"],
-  "Goiás": ["goias", "goiás"],
-  "Criciúma": ["criciuma", "criciúma"],
+  "Scotland": ["scotland", "escocia", "escócia"],
+  "Goiás": ["goias"],
+  "Criciúma": ["criciuma"],
+  "Haiti": ["haiti"],
+  "Panamá": ["panama"],
+  "Jamaica": ["jamaica"],
+  "Costa Rica": ["costa rica"],
+  "Curacao": ["curacao"],
+  "Jordan": ["jordan", "jordania", "jordânia"],
+  "Uzbekistan": ["uzbekistan", "uzbequistao", "uzbequistão"],
 };
 
-/**
- * Strip common suffixes like FC, CF, SC, AFC from a team name.
- */
-function stripSuffix(name: string): string {
-  return name.replace(/\b(fc|cf|sc|afc)\b/gi, "").trim().replace(/\s+/g, " ");
+/** Normalize a string: lowercase, strip accents/punctuation/common suffixes, collapse spaces. */
+function normalize(name: string): string {
+  return name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/[.,'`’\-]/g, " ")        // punctuation → space
+    .replace(/\b(fc|cf|sc|afc|sk|ac|cd)\b/g, "") // common club suffixes
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
- * Strict team name matching — NO substring/includes matching.
- * 1. Exact match (lowercase)
- * 2. Alias exact match
- * 3. Fallback: strip common suffixes (FC/CF/SC/AFC) and compare
+ * Matching strategy (in order):
+ * 1. Normalized exact match
+ * 2. Normalized alias match
+ * 3. Code match (3-letter team code present in API name as a whole token)
  */
-function matchesTeamName(dbName: string, apiName: string): boolean {
-  const apiLower = apiName.toLowerCase().trim();
-  const dbLower = dbName.toLowerCase().trim();
+function matchesTeamName(dbName: string, dbCode: string | null, apiName: string): boolean {
+  const a = normalize(apiName);
+  const d = normalize(dbName);
+  if (!a || !d) return false;
+  if (a === d) return true;
 
-  // 1. Exact match
-  if (dbLower === apiLower) return true;
+  const aliases = (teamAliases[dbName] ?? []).map(normalize);
+  if (aliases.includes(a)) return true;
 
-  // 2. Check aliases (exact match only)
-  const aliases = teamAliases[dbName];
-  if (aliases && aliases.some(alias => alias === apiLower)) {
-    return true;
+  if (dbCode) {
+    const code = dbCode.toLowerCase();
+    const tokens = a.split(" ");
+    if (tokens.includes(code)) return true;
   }
-
-  // 3. Fallback: strip suffixes and compare
-  const dbStripped = stripSuffix(dbLower);
-  const apiStripped = stripSuffix(apiLower);
-  if (dbStripped.length > 0 && dbStripped === apiStripped) {
-    return true;
-  }
-
-  // Also check aliases with stripped suffixes
-  if (aliases) {
-    return aliases.some(alias => stripSuffix(alias) === apiStripped);
-  }
-
   return false;
 }
 
-/**
- * Validate that API match date is within ±dayRange days of DB match date.
- */
 function datesAreClose(dbDate: string, apiDate: string, dayRange = 3): boolean {
-  const db = new Date(dbDate).getTime();
-  const api = new Date(apiDate).getTime();
-  const diffMs = Math.abs(db - api);
-  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  const diffDays = Math.abs(new Date(dbDate).getTime() - new Date(apiDate).getTime()) / 86_400_000;
   return diffDays <= dayRange;
 }
 
-async function fetchFromApi(footballToken: string, dateFrom: string, dateTo: string, extraParams = ""): Promise<any[]> {
-  const baseUrl = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}`;
-  const url = extraParams ? `${baseUrl}&${extraParams}` : baseUrl;
+async function fetchFromApi(token: string, dateFrom: string, dateTo: string, extra = ""): Promise<any[]> {
+  const url = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}${extra ? "&" + extra : ""}`;
   console.log(`Fetching: ${url}`);
-
-  const res = await fetch(url, {
-    headers: { "X-Auth-Token": footballToken },
-  });
-
+  const res = await fetch(url, { headers: { "X-Auth-Token": token } });
   if (!res.ok) {
-    const body = await res.text();
-    console.error(`API error ${res.status}: ${body}`);
+    console.error(`API error ${res.status}: ${await res.text()}`);
     return [];
   }
-
   const data = await res.json();
   const matches = data.matches || [];
   console.log(`API returned ${matches.length} matches`);
-
-  for (const m of matches.slice(0, 5)) {
-    console.log(`  - ${m.homeTeam?.name} vs ${m.awayTeam?.name} | ${m.status} | ${m.score?.fullTime?.home}-${m.score?.fullTime?.away}`);
-  }
-
   return matches;
 }
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const footballToken = Deno.env.get("FOOTBALL_DATA_TOKEN");
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
     if (!footballToken) {
-      return new Response(
-        JSON.stringify({ error: "FOOTBALL_DATA_TOKEN not configured." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ error: "FOOTBALL_DATA_TOKEN not configured." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     const now = new Date().toISOString();
     const { data: pendingMatches, error: fetchError } = await supabase
       .from("matches")
-      .select("id, match_date, status, home_team:teams!matches_home_team_id_fkey(name, code), away_team:teams!matches_away_team_id_fkey(name, code)")
+      .select("id, match_date, status, api_fixture_id, home_team:teams!matches_home_team_id_fkey(name, code), away_team:teams!matches_away_team_id_fkey(name, code)")
       .neq("status", "finished")
       .lt("match_date", now)
       .order("match_date", { ascending: false })
@@ -198,121 +168,111 @@ serve(async (req) => {
     if (fetchError) throw new Error(`DB query failed: ${fetchError.message}`);
 
     if (!pendingMatches || pendingMatches.length === 0) {
-      return new Response(
-        JSON.stringify({ success: true, message: "No pending matches to update", updated: 0 }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return new Response(JSON.stringify({ success: true, message: "No pending matches", updated: 0, pending_checked: 0 }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     console.log(`Found ${pendingMatches.length} pending matches`);
-    for (const m of pendingMatches) {
-      const ht = (m as any).home_team;
-      const at = (m as any).away_team;
-      console.log(`  DB: ${ht?.name} vs ${at?.name} | ${m.match_date} | ${m.status}`);
-    }
 
-    // Get date range
-    const matchDates = pendingMatches.map(m => m.match_date.split("T")[0]);
-    const dateFrom = matchDates.reduce((a, b) => a < b ? a : b);
-    let dateTo = matchDates.reduce((a, b) => a > b ? a : b);
-    // Expand range by +2 days for timezone differences
-    const dateToObj = new Date(dateTo);
+    // Date range (expand +2 days for timezone safety)
+    const dates = pendingMatches.map(m => m.match_date.split("T")[0]);
+    const dateFrom = dates.reduce((a, b) => a < b ? a : b);
+    const dateToObj = new Date(dates.reduce((a, b) => a > b ? a : b));
     dateToObj.setDate(dateToObj.getDate() + 2);
-    dateTo = dateToObj.toISOString().split("T")[0];
+    const dateTo = dateToObj.toISOString().split("T")[0];
 
-    // Try FINISHED first, then all statuses
     let apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo, "status=FINISHED");
-
     if (apiMatches.length === 0) {
-      console.log("No FINISHED matches, trying without status filter...");
       apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo);
     }
 
-    // Filter to usable matches
     const finishedMatches = apiMatches.filter(m =>
-      m.status === "FINISHED" &&
-      m.score?.fullTime?.home !== null &&
-      m.score?.fullTime?.home !== undefined
+      m.status === "FINISHED" && m.score?.fullTime?.home != null
     );
 
     console.log(`${finishedMatches.length} usable FINISHED matches with scores`);
+    for (const m of finishedMatches.slice(0, 10)) {
+      console.log(`  API: ${m.homeTeam?.name} vs ${m.awayTeam?.name} | ${m.utcDate} | ${m.score?.fullTime?.home}-${m.score?.fullTime?.away} | id=${m.id}`);
+    }
 
     let updated = 0;
     const errors: string[] = [];
     const matched: string[] = [];
-    const unmatched: string[] = [];
+    const unmatched: { game: string; reason: string }[] = [];
 
     for (const match of pendingMatches) {
       const homeTeam = (match as any).home_team;
       const awayTeam = (match as any).away_team;
       if (!homeTeam || !awayTeam) {
-        unmatched.push(`Match ${match.id}: missing team data`);
+        unmatched.push({ game: `Match ${match.id}`, reason: "Times não preenchidos no banco" });
         continue;
       }
 
-      let found = false;
-      for (const apiMatch of finishedMatches) {
-        const apiHome = apiMatch.homeTeam?.name || "";
-        const apiAway = apiMatch.awayTeam?.name || "";
-        const apiDate = apiMatch.utcDate || "";
+      const label = `${homeTeam.name} vs ${awayTeam.name}`;
+      let apiMatch: any | null = null;
 
-        // Both teams must match AND date must be close
-        const homeMatches = matchesTeamName(homeTeam.name, apiHome);
-        const awayMatches = matchesTeamName(awayTeam.name, apiAway);
-        const dateClose = datesAreClose(match.match_date, apiDate);
-
-        if (homeMatches && awayMatches && dateClose) {
-          const homeScore = apiMatch.score.fullTime.home;
-          const awayScore = apiMatch.score.fullTime.away;
-
-          console.log(`✅ MATCH: ${homeTeam.name} vs ${awayTeam.name} => ${homeScore}-${awayScore}`);
-
-          const { error: updateError } = await supabase
-            .from("matches")
-            .update({
-              home_score: Number(homeScore),
-              away_score: Number(awayScore),
-              status: "finished",
-              result_source: "api",
-            })
-            .eq("id", match.id);
-
-          if (updateError) {
-            errors.push(`Failed ${homeTeam.name} vs ${awayTeam.name}: ${updateError.message}`);
-          } else {
-            updated++;
-            matched.push(`${homeTeam.name} vs ${awayTeam.name}: ${homeScore}-${awayScore}`);
-          }
-          found = true;
-          break;
-        }
+      // 1. Match by api_fixture_id (most reliable)
+      if (match.api_fixture_id) {
+        apiMatch = finishedMatches.find(m => m.id === match.api_fixture_id) ?? null;
       }
 
-      if (!found) {
-        unmatched.push(`${homeTeam.name} vs ${awayTeam.name}`);
-        console.log(`❌ NO MATCH: ${homeTeam.name} vs ${awayTeam.name}`);
+      // 2. Fallback: name + date
+      if (!apiMatch) {
+        apiMatch = finishedMatches.find(m =>
+          matchesTeamName(homeTeam.name, homeTeam.code, m.homeTeam?.name ?? "") &&
+          matchesTeamName(awayTeam.name, awayTeam.code, m.awayTeam?.name ?? "") &&
+          datesAreClose(match.match_date, m.utcDate ?? "")
+        ) ?? null;
+      }
+
+      if (!apiMatch) {
+        // Determine reason: did API return any game on this date involving these teams?
+        const apiHasOnDate = apiMatches.some(m => datesAreClose(match.match_date, m.utcDate ?? "", 1));
+        const reason = apiHasOnDate
+          ? "Times não bateram (verifique aliases)"
+          : "API não retornou jogo finalizado nesta data";
+        unmatched.push({ game: label, reason });
+        console.log(`❌ NO MATCH: ${label} — ${reason}`);
+        continue;
+      }
+
+      const homeScore = Number(apiMatch.score.fullTime.home);
+      const awayScore = Number(apiMatch.score.fullTime.away);
+      console.log(`✅ MATCH: ${label} => ${homeScore}-${awayScore} (api id ${apiMatch.id})`);
+
+      const { error: updateError } = await supabase
+        .from("matches")
+        .update({
+          home_score: homeScore,
+          away_score: awayScore,
+          status: "finished",
+          result_source: "api",
+          api_fixture_id: apiMatch.id ?? match.api_fixture_id,
+        })
+        .eq("id", match.id);
+
+      if (updateError) {
+        errors.push(`${label}: ${updateError.message}`);
+      } else {
+        updated++;
+        matched.push(`${label}: ${homeScore}-${awayScore}`);
       }
     }
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        updated,
-        pending_checked: pendingMatches.length,
-        api_matches_found: apiMatches.length,
-        finished_with_scores: finishedMatches.length,
-        matched,
-        unmatched: unmatched.length > 0 ? unmatched : undefined,
-        errors: errors.length > 0 ? errors : undefined,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({
+      success: true,
+      updated,
+      pending_checked: pendingMatches.length,
+      api_matches_found: apiMatches.length,
+      finished_with_scores: finishedMatches.length,
+      matched,
+      unmatched: unmatched.length > 0 ? unmatched : undefined,
+      errors: errors.length > 0 ? errors : undefined,
+    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Error:", message);
-    return new Response(
-      JSON.stringify({ error: message }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return new Response(JSON.stringify({ error: message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 });

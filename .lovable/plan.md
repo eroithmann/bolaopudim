@@ -1,32 +1,30 @@
+## Plano para deixar a sincronização de resultados mais robusta
 
+### Problema identificado
+- O jogo Canadá x Bósnia foi salvo manualmente, então já não aparece mais como pendente para a função buscar.
+- A função atual depende de combinação por nomes traduzidos/aliases e data próxima.
+- `Canadá` tem alias para `canada`, mas `Bósnia e Herzegovina` não tem aliases como `bosnia and herzegovina`, `bosnia-herzegovina`, `bosnia`, `bih` etc.
+- Os jogos também não têm `api_fixture_id` preenchido, então a sincronização não usa o identificador oficial da API, que é o método mais confiável.
 
-# Correção do matching Liverpool vs PSG + prevenção futura
+### Mudanças propostas
+1. **Melhorar matching por país/time**
+   - Adicionar aliases ausentes para seleções, começando por Bósnia e Herzegovina, RD Congo, Iraque e outros nomes comuns em inglês/português.
+   - Criar normalização centralizada: remover acentos, pontuação, hífens, variações de espaços e sufixos comuns.
+   - Comparar também por código de seleção quando disponível (`CAN`, `BIH`, etc.).
 
-## Diagnóstico
-- **API retorna**: `"Paris Saint-Germain FC"` e `"Liverpool FC"`
-- **Aliases atuais do PSG**: `["paris saint-germain", "paris sg", "psg"]` — falta `"paris saint-germain fc"`
-- **Liverpool funciona** porque já tem `"liverpool fc"` nos aliases
-- **Atlético funciona** porque tem `"club atlético de madrid"` nos aliases
+2. **Usar identificador da API quando existir**
+   - Ajustar a sincronização para primeiro tentar bater pelo `api_fixture_id` salvo no jogo.
+   - Se não existir, usar o matching por times + data como fallback.
+   - Ao encontrar por fallback, salvar o `api_fixture_id` no jogo para as próximas sincronizações serem diretas.
 
-## Correções
+3. **Ampliar a janela e melhorar diagnóstico**
+   - Manter janela segura por data, mas registrar claramente quais jogos ficaram sem match e quais nomes vieram da API.
+   - Retornar no resultado da função uma lista de jogos não encontrados com motivo provável: nome, data ou placar/status indisponível.
 
-### 1. Adicionar alias faltante (fetch-match-results/index.ts)
-Adicionar `"paris saint-germain fc"` à lista de aliases do PSG.
+4. **Melhorar feedback no painel admin**
+   - Em vez de mostrar apenas “0 jogos atualizados”, exibir também quantos jogos foram verificados e quais ficaram sem encontrar resultado.
+   - Assim, se a API não retornar o jogo ou retornar com nome diferente, fica visível sem depender de logs.
 
-### 2. Padronizar group_name dos jogos de teste
-Atualizar via migration: todos os jogos de teste com `group_name = 'Champions League QF'` para consistência.
-
-### 3. Melhoria preventiva: fallback com normalização
-Adicionar ao `matchesTeamName` uma etapa extra: se nenhum alias exato bater, tentar remover sufixos comuns ("FC", "CF", "SC", "AFC") de ambos os nomes e comparar novamente. Isso evita que o problema se repita com outros times (ex: "Arsenal FC" vs "Arsenal").
-
-```text
-Fluxo de matching melhorado:
-1. Comparação exata (lowercase)
-2. Comparação por alias exato
-3. [NOVO] Remover sufixos (FC/CF/SC/AFC) → comparar novamente
-```
-
-### Arquivos alterados
-- `supabase/functions/fetch-match-results/index.ts` — alias + fallback de normalização
-- Migration SQL — padronizar group_name dos jogos de teste
-
+5. **Validar com casos reais**
+   - Testar mentalmente/por chamada da função os casos Canadá x Bósnia, PSG/Liverpool e seleções com acentos/traduções.
+   - Conferir se jogos manualmente finalizados não são sobrescritos indevidamente.
