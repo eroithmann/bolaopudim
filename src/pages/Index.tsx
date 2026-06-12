@@ -95,7 +95,7 @@ export default function Index() {
             </span>
           </h1>
           <p className="text-lg md:text-2xl opacity-90 mb-10 font-sans max-w-2xl mx-auto leading-relaxed">
-            O bolão definitivo da Copa do Mundo. Palpite cada jogo, suba no ranking e prove que entende mais que seus amigos.
+            O bolão onde todos são bem vindos, menos o Victor Grunberg.
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
             {!user ? (
