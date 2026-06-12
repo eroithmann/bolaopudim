@@ -161,85 +161,103 @@ export default function Admin() {
           <PredictionStatus />
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>RESULTADOS DOS JOGOS</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Jogo</TableHead>
-                  <TableHead className="text-center">Placar</TableHead>
-                  <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pastMatches.map((match) => {
-                  const edit = editResults[match.id] ?? {
-                    home: match.home_score !== null ? String(match.home_score) : "",
-                    away: match.away_score !== null ? String(match.away_score) : "",
-                  };
+        <Tabs defaultValue="past" className="w-full">
+          <TabsList>
+            <TabsTrigger value="past">Jogos Passados</TabsTrigger>
+            <TabsTrigger value="all">Todos os Jogos</TabsTrigger>
+          </TabsList>
+          {(["past", "all"] as const).map((tab) => {
+            const list = tab === "past" ? pastMatches : matches;
+            return (
+              <TabsContent key={tab} value={tab}>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      {tab === "past" ? "RESULTADOS DOS JOGOS" : "TODOS OS JOGOS"}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Jogo</TableHead>
+                          <TableHead className="text-center">Placar</TableHead>
+                          <TableHead className="text-center">Status</TableHead>
+                          <TableHead className="text-center">Ação</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {list.map((match) => {
+                          const edit = editResults[match.id] ?? {
+                            home: match.home_score !== null ? String(match.home_score) : "",
+                            away: match.away_score !== null ? String(match.away_score) : "",
+                          };
 
-                  return (
-                    <TableRow key={match.id}>
-                      <TableCell>
-                        <div className="font-medium text-sm">
-                          {match.home_team?.name || "TBD"} vs {match.away_team?.name || "TBD"}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{match.group_name || match.phase}</div>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-center gap-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            className="w-14 h-8 text-center"
-                            value={edit.home}
-                            onChange={(e) => setEditResults((s) => ({ ...s, [match.id]: { ...edit, home: e.target.value } }))}
-                          />
-                          <span>-</span>
-                          <Input
-                            type="number"
-                            min="0"
-                            className="w-14 h-8 text-center"
-                            value={edit.away}
-                            onChange={(e) => setEditResults((s) => ({ ...s, [match.id]: { ...edit, away: e.target.value } }))}
-                          />
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Badge variant={match.status === "finished" ? "default" : "outline"}>
-                          {match.status === "finished" ? "Finalizado" : "Agendado"}
-                        </Badge>
-                        {match.result_source && (
-                          <div className="text-xs text-muted-foreground mt-1">{match.result_source}</div>
+                          return (
+                            <TableRow key={match.id}>
+                              <TableCell>
+                                <div className="font-medium text-sm">
+                                  {match.home_team?.name || "TBD"} vs {match.away_team?.name || "TBD"}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  {match.group_name || match.phase} · {new Date(match.match_date).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center justify-center gap-1">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    className="w-14 h-8 text-center"
+                                    value={edit.home}
+                                    onChange={(e) => setEditResults((s) => ({ ...s, [match.id]: { ...edit, home: e.target.value } }))}
+                                  />
+                                  <span>-</span>
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    className="w-14 h-8 text-center"
+                                    value={edit.away}
+                                    onChange={(e) => setEditResults((s) => ({ ...s, [match.id]: { ...edit, away: e.target.value } }))}
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Badge variant={match.status === "finished" ? "default" : "outline"}>
+                                  {match.status === "finished" ? "Finalizado" : "Agendado"}
+                                </Badge>
+                                {match.result_source && (
+                                  <div className="text-xs text-muted-foreground mt-1">{match.result_source}</div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Button
+                                  size="sm"
+                                  disabled={saving[match.id]}
+                                  onClick={() => saveResult(match.id)}
+                                >
+                                  {saving[match.id] ? "..." : match.status === "finished" ? <><Check className="h-3 w-3 mr-1" />Atualizar</> : <><Save className="h-3 w-3 mr-1" />Salvar</>}
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                        {list.length === 0 && (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                              Nenhum jogo.
+                            </TableCell>
+                          </TableRow>
                         )}
-                      </TableCell>
-                      <TableCell className="text-center">
-                        <Button
-                          size="sm"
-                          disabled={saving[match.id]}
-                          onClick={() => saveResult(match.id)}
-                        >
-                          {saving[match.id] ? "..." : match.status === "finished" ? <><Check className="h-3 w-3 mr-1" />Atualizar</> : <><Save className="h-3 w-3 mr-1" />Salvar</>}
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {pastMatches.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                      Nenhum jogo passado ainda.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            );
+          })}
+        </Tabs>
+
       </div>
     </Layout>
   );
