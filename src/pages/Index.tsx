@@ -69,24 +69,23 @@ export default function Index() {
   };
 
   const fetchTopRanking = async () => {
-    const { data } = await supabase
-      .from("predictions")
-      .select("user_id, points, profiles!inner(name)")
-      .not("points", "is", null);
+    const [{ data: profiles }, { data: preds }] = await Promise.all([
+      supabase.from("profiles").select("user_id, name"),
+      supabase.from("predictions").select("user_id, points").not("points", "is", null),
+    ]);
 
-    if (data) {
-      const grouped: Record<string, { name: string | null; total: number }> = {};
-      data.forEach((p: any) => {
-        if (!grouped[p.user_id]) {
-          grouped[p.user_id] = { name: p.profiles?.name, total: 0 };
-        }
-        grouped[p.user_id].total += p.points || 0;
-      });
-      const sorted = Object.entries(grouped)
-        .map(([user_id, v]) => ({ user_id, name: v.name, total_points: v.total }))
-        .sort((a, b) => b.total_points - a.total_points);
-      setRanking(sorted);
-    }
+    const grouped: Record<string, { name: string | null; total: number }> = {};
+    (profiles || []).forEach((p: any) => {
+      grouped[p.user_id] = { name: p.name, total: 0 };
+    });
+    (preds || []).forEach((p: any) => {
+      if (!grouped[p.user_id]) grouped[p.user_id] = { name: null, total: 0 };
+      grouped[p.user_id].total += p.points || 0;
+    });
+    const sorted = Object.entries(grouped)
+      .map(([user_id, v]) => ({ user_id, name: v.name, total_points: v.total }))
+      .sort((a, b) => b.total_points - a.total_points);
+    setRanking(sorted);
   };
 
   const fetchUserStatus = async () => {
