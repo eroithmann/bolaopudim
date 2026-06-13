@@ -239,6 +239,8 @@ export default function Ranking() {
           </>
         )}
 
+        <RankingEvolution />
+
         <Card className="mt-6">
           <CardHeader>
             <CardTitle className="text-xl">SISTEMA DE PONTUAÇÃO</CardTitle>
