@@ -97,24 +97,24 @@ export default function MatchCard({
 
   return (
     <Card className={match.status === "finished" ? "border-primary/30" : ""}>
-      <CardContent className="py-4 px-4 sm:px-6">
+      <CardContent className="py-3 px-3 sm:py-4 sm:px-6">
         {/* Header: date + venue + group */}
-        <div className="flex justify-between items-start mb-4 text-xs text-muted-foreground">
-          <div className="flex flex-col gap-0.5">
-            <span className="font-medium">{capitalizedDay}, {dateStr}</span>
+        <div className="flex justify-between items-start mb-3 text-[11px] sm:text-xs text-muted-foreground gap-2">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="font-medium truncate">{capitalizedDay}, {dateStr}</span>
             {match.venue && (
-              <span className="flex items-center gap-1">
-                <MapPin className="h-3 w-3" />
-                {match.venue}
+              <span className="flex items-center gap-1 truncate">
+                <MapPin className="h-3 w-3 shrink-0" />
+                <span className="truncate">{match.venue}</span>
               </span>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            {match.group_name && <Badge variant="outline" className="text-xs">{match.group_name}</Badge>}
+          <div className="flex items-center gap-1.5 shrink-0">
+            {match.group_name && <Badge variant="outline" className="text-[10px] px-1.5 py-0">{match.group_name}</Badge>}
             {match.status !== "finished" && !locked && totalSecsLeft > 0 && (
-              <span className={`flex items-center gap-1 font-mono text-[11px] ${totalSecsLeft < 3600 ? "text-destructive font-semibold" : "text-muted-foreground"}`} title="Tempo restante para apostar">
+              <span className={`flex items-center gap-1 font-mono text-[10px] sm:text-[11px] ${totalSecsLeft < 3600 ? "text-destructive font-semibold" : "text-muted-foreground"}`} title="Tempo restante para apostar">
                 <Clock className="h-3 w-3" />
-                🎯 {formatCountdown(totalSecsLeft)}
+                {formatCountdown(totalSecsLeft)}
               </span>
             )}
             {locked && <Lock className="h-3 w-3" />}
@@ -122,34 +122,34 @@ export default function MatchCard({
         </div>
 
         {/* Teams row */}
-        <div className="flex items-center justify-center gap-3 sm:gap-4">
+        <div className="flex items-center justify-center gap-2 sm:gap-4">
           {/* Home team */}
-          <div className="flex items-center gap-2 flex-1 justify-end min-w-0">
-            <span className="font-semibold text-sm sm:text-base truncate text-right">
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 flex-1 sm:justify-end min-w-0">
+            {match.home_team && (
+              <img src={getFlagUrl(match.home_team.code)} alt="" className="h-9 w-14 sm:h-7 sm:w-10 object-cover rounded shadow-sm shrink-0 sm:order-2" />
+            )}
+            <span className="font-semibold text-xs sm:text-base text-center sm:text-right truncate w-full sm:w-auto sm:order-1 leading-tight">
               {match.home_team?.name || "TBD"}
             </span>
-            {match.home_team && (
-              <img src={getFlagUrl(match.home_team.code)} alt="" className="h-7 w-10 object-cover rounded shadow-sm shrink-0" />
-            )}
           </div>
 
           {/* Score / VS */}
-          <div className="shrink-0 min-w-[60px] text-center">
+          <div className="shrink-0 min-w-[50px] sm:min-w-[60px] text-center">
             {match.status === "finished" ? (
-              <span className="font-bold text-xl tabular-nums">
+              <span className="font-bold text-lg sm:text-xl tabular-nums">
                 {match.home_score} – {match.away_score}
               </span>
             ) : (
-              <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">vs</span>
+              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wider">vs</span>
             )}
           </div>
 
           {/* Away team */}
-          <div className="flex items-center gap-2 flex-1 min-w-0">
+          <div className="flex flex-col sm:flex-row items-center gap-1.5 sm:gap-2 flex-1 min-w-0">
             {match.away_team && (
-              <img src={getFlagUrl(match.away_team.code)} alt="" className="h-7 w-10 object-cover rounded shadow-sm shrink-0" />
+              <img src={getFlagUrl(match.away_team.code)} alt="" className="h-9 w-14 sm:h-7 sm:w-10 object-cover rounded shadow-sm shrink-0" />
             )}
-            <span className="font-semibold text-sm sm:text-base truncate">
+            <span className="font-semibold text-xs sm:text-base text-center sm:text-left truncate w-full sm:w-auto leading-tight">
               {match.away_team?.name || "TBD"}
             </span>
           </div>
