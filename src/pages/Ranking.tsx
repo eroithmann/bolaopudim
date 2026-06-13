@@ -237,6 +237,8 @@ export default function Ranking() {
             </Card>
           </>
         )}
+
+        <Card className="mt-6">
           <CardHeader>
             <CardTitle className="text-xl">SISTEMA DE PONTUAÇÃO</CardTitle>
           </CardHeader>
