@@ -81,14 +81,14 @@ export default function PublicBets() {
 
   return (
     <Layout>
-      <div className="max-w-[1400px] mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-2 flex items-center gap-3">
-          <Users className="h-8 w-8 text-secondary" />
+      <div className="max-w-[1400px] mx-auto px-4 py-6 sm:py-8">
+        <h1 className="text-2xl sm:text-4xl font-bold mb-2 flex items-center gap-2 sm:gap-3">
+          <Users className="h-6 w-6 sm:h-8 sm:w-8 text-secondary" />
           APOSTAS DA GALERA
         </h1>
-        <p className="text-muted-foreground mb-6 flex items-center gap-2 text-sm">
-          <Lock className="h-4 w-4" />
-          Apostas ficam públicas 1h antes de cada jogo. Quem não apostou aparece com "—" e leva 0 pontos.
+        <p className="text-muted-foreground mb-6 flex items-start gap-2 text-xs sm:text-sm">
+          <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>Apostas ficam públicas 1h antes de cada jogo. Quem não apostou aparece com "—" e leva 0 pontos.</span>
         </p>
 
         {loading ? (
@@ -100,68 +100,128 @@ export default function PublicBets() {
         ) : sortedProfiles.length === 0 ? (
           <Card><CardContent className="py-12 text-center text-muted-foreground">Sem jogadores cadastrados.</CardContent></Card>
         ) : (
-          <Card>
-            <CardContent className="p-0 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="sticky left-0 bg-background z-10 min-w-[220px]">Jogo</TableHead>
-                    <TableHead className="text-center min-w-[80px]">Resultado</TableHead>
-                    {sortedProfiles.map(p => (
-                      <TableHead key={p.user_id} className="text-center min-w-[90px] whitespace-nowrap">
-                        {p.name || "—"}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {visibleMatches.map(m => {
-                    const home = m.home_team_id ? teams.get(m.home_team_id) : null;
-                    const away = m.away_team_id ? teams.get(m.away_team_id) : null;
-                    const finished = m.status === "finished" && m.home_score != null && m.away_score != null;
-                    return (
-                      <TableRow key={m.id}>
-                        <TableCell className="sticky left-0 bg-background z-10 align-top">
-                          <div className="font-medium text-sm">
-                            {home?.code || "?"} x {away?.code || "?"}
+          <>
+            {/* MOBILE: lista de cards por jogo */}
+            <div className="md:hidden space-y-3">
+              {visibleMatches.map(m => {
+                const home = m.home_team_id ? teams.get(m.home_team_id) : null;
+                const away = m.away_team_id ? teams.get(m.away_team_id) : null;
+                const finished = m.status === "finished" && m.home_score != null && m.away_score != null;
+                return (
+                  <Card key={m.id}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center justify-between mb-3 pb-2 border-b">
+                        <div>
+                          <div className="font-bold text-base">
+                            {home?.code || "?"} <span className="text-muted-foreground font-normal">vs</span> {away?.code || "?"}
                           </div>
-                          <div className="text-xs text-muted-foreground">
-                            {format(parseISO(m.match_date), "dd/MM HH:mm", { locale: ptBR })}
+                          <div className="text-[11px] text-muted-foreground">
+                            {format(parseISO(m.match_date), "dd/MM 'às' HH:mm", { locale: ptBR })}
                           </div>
-                        </TableCell>
-                        <TableCell className="text-center font-bold">
+                        </div>
+                        <div className="text-right">
                           {finished ? (
-                            <span className="text-primary">{m.home_score} x {m.away_score}</span>
+                            <div className="font-bold text-primary text-lg tabular-nums">
+                              {m.home_score} – {m.away_score}
+                            </div>
                           ) : (
-                            <span className="text-muted-foreground text-xs">aguard.</span>
+                            <span className="text-[11px] text-muted-foreground italic">aguardando</span>
                           )}
-                        </TableCell>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
                         {sortedProfiles.map(p => {
                           const pred = predMap.get(`${m.id}:${p.user_id}`);
                           return (
-                            <TableCell key={p.user_id} className={`text-center ${cellClass(pred?.points)}`}>
+                            <div
+                              key={p.user_id}
+                              className={`flex items-center justify-between px-2 py-1.5 rounded text-xs ${cellClass(pred?.points)}`}
+                            >
+                              <span className="truncate mr-2">{p.name || "—"}</span>
                               {pred ? (
-                                <div>
-                                  <div className="font-semibold">{pred.home_score} x {pred.away_score}</div>
+                                <span className="font-semibold tabular-nums shrink-0">
+                                  {pred.home_score}–{pred.away_score}
                                   {finished && (
-                                    <div className="text-xs opacity-80">
-                                      {pred.points ?? 0} pt{(pred.points ?? 0) === 1 ? "" : "s"}
-                                    </div>
+                                    <span className="ml-1 opacity-70">({pred.points ?? 0})</span>
                                   )}
-                                </div>
+                                </span>
                               ) : (
-                                <span className="text-muted-foreground">—</span>
+                                <span className="text-muted-foreground shrink-0">—</span>
                               )}
-                            </TableCell>
+                            </div>
                           );
                         })}
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* DESKTOP: tabela completa */}
+            <Card className="hidden md:block">
+              <CardContent className="p-0 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="sticky left-0 bg-background z-10 min-w-[220px]">Jogo</TableHead>
+                      <TableHead className="text-center min-w-[80px]">Resultado</TableHead>
+                      {sortedProfiles.map(p => (
+                        <TableHead key={p.user_id} className="text-center min-w-[90px] whitespace-nowrap">
+                          {p.name || "—"}
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {visibleMatches.map(m => {
+                      const home = m.home_team_id ? teams.get(m.home_team_id) : null;
+                      const away = m.away_team_id ? teams.get(m.away_team_id) : null;
+                      const finished = m.status === "finished" && m.home_score != null && m.away_score != null;
+                      return (
+                        <TableRow key={m.id}>
+                          <TableCell className="sticky left-0 bg-background z-10 align-top">
+                            <div className="font-medium text-sm">
+                              {home?.code || "?"} x {away?.code || "?"}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {format(parseISO(m.match_date), "dd/MM HH:mm", { locale: ptBR })}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center font-bold">
+                            {finished ? (
+                              <span className="text-primary">{m.home_score} x {m.away_score}</span>
+                            ) : (
+                              <span className="text-muted-foreground text-xs">aguard.</span>
+                            )}
+                          </TableCell>
+                          {sortedProfiles.map(p => {
+                            const pred = predMap.get(`${m.id}:${p.user_id}`);
+                            return (
+                              <TableCell key={p.user_id} className={`text-center ${cellClass(pred?.points)}`}>
+                                {pred ? (
+                                  <div>
+                                    <div className="font-semibold">{pred.home_score} x {pred.away_score}</div>
+                                    {finished && (
+                                      <div className="text-xs opacity-80">
+                                        {pred.points ?? 0} pt{(pred.points ?? 0) === 1 ? "" : "s"}
+                                      </div>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </>
         )}
       </div>
     </Layout>
