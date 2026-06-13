@@ -231,32 +231,33 @@ export default function MatchCard({
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground shrink-0">Palpite:</span>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  min="0"
-                  max="20"
-                  className="w-16 h-8 text-center"
-                  placeholder="—"
-                  value={editScore.home}
-                  onChange={(e) => onEditChange({ ...editScore, home: e.target.value })}
-                />
-                <span className="text-muted-foreground">–</span>
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  min="0"
-                  max="20"
-                  className="w-16 h-8 text-center"
-                  placeholder="—"
-                  value={editScore.away}
-                  onChange={(e) => onEditChange({ ...editScore, away: e.target.value })}
-                />
-
+              <div className="flex items-center justify-between gap-2 sm:justify-start">
+                <span className="text-xs text-muted-foreground shrink-0 hidden sm:inline">Palpite:</span>
+                <div className="flex items-center gap-2 flex-1 sm:flex-initial justify-center">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min="0"
+                    max="20"
+                    className="w-14 h-11 sm:w-16 sm:h-9 text-center text-lg sm:text-base font-semibold tabular-nums"
+                    placeholder="—"
+                    value={editScore.home}
+                    onChange={(e) => onEditChange({ ...editScore, home: e.target.value })}
+                  />
+                  <span className="text-muted-foreground font-bold">–</span>
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min="0"
+                    max="20"
+                    className="w-14 h-11 sm:w-16 sm:h-9 text-center text-lg sm:text-base font-semibold tabular-nums"
+                    placeholder="—"
+                    value={editScore.away}
+                    onChange={(e) => onEditChange({ ...editScore, away: e.target.value })}
+                  />
+                </div>
                 <Button
                   size="sm"
                   className="h-8"
