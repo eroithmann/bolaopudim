@@ -91,26 +91,50 @@ export default function Profile() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-6 flex items-center gap-3">
-          <User className="h-8 w-8 text-primary" />
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+        <h1 className="text-2xl sm:text-4xl font-bold mb-6 flex items-center gap-2 sm:gap-3">
+          <User className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
           MEU PERFIL
         </h1>
 
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Profile edit */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-xl">DADOS</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        {/* Stats hero — sempre visível no topo */}
+        <Card className="mb-4 bg-gradient-to-br from-primary/10 to-secondary/10 border-primary/20">
+          <CardContent className="py-4">
+            <div className="grid grid-cols-4 gap-2 sm:gap-4 text-center">
               <div>
-                <label className="text-sm text-muted-foreground">Email</label>
-                <p className="font-medium">{user?.email}</p>
+                <div className="text-2xl sm:text-3xl font-bold text-primary tabular-nums">{stats.total}</div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">Pontos</div>
               </div>
               <div>
-                <label className="text-sm text-muted-foreground">Nome</label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} />
+                <div className="text-2xl sm:text-3xl font-bold tabular-nums">{stats.exact}</div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">Exatos</div>
+              </div>
+              <div>
+                <div className="text-2xl sm:text-3xl font-bold tabular-nums">{stats.partial}</div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">Saldo</div>
+              </div>
+              <div>
+                <div className="text-2xl sm:text-3xl font-bold tabular-nums">{stats.results}</div>
+                <div className="text-[10px] sm:text-xs text-muted-foreground uppercase tracking-wider">Result.</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="grid md:grid-cols-3 gap-4 sm:gap-6">
+          {/* Profile edit */}
+          <Card className="md:col-span-1">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-xl">DADOS</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div>
+                <label className="text-xs text-muted-foreground">Email</label>
+                <p className="font-medium text-sm truncate">{user?.email}</p>
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Nome</label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} className="h-10" />
               </div>
               <Button onClick={updateProfile} disabled={saving} className="w-full">
                 <Save className="h-4 w-4 mr-2" />
@@ -119,52 +143,59 @@ export default function Profile() {
             </CardContent>
           </Card>
 
-          {/* Stats */}
+          {/* Meus palpites */}
           <Card className="md:col-span-2">
-            <CardHeader>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-secondary" />
-                DESEMPENHO
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-xl flex items-center gap-2">
+                <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-secondary" />
+                MEUS PALPITES ({predictions.length})
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-4 gap-4 text-center mb-6">
-                <div className="p-3 rounded-lg bg-primary/10">
-                  <span className="block text-2xl font-bold text-primary">{stats.total}</span>
-                  <span className="text-xs text-muted-foreground">Total pts</span>
-                </div>
-                <div className="p-3 rounded-lg bg-primary/10">
-                  <span className="block text-2xl font-bold text-primary">{stats.exact}</span>
-                  <span className="text-xs text-muted-foreground">Exatos</span>
-                </div>
-                <div className="p-3 rounded-lg bg-secondary/20">
-                  <span className="block text-2xl font-bold">{stats.partial}</span>
-                  <span className="text-xs text-muted-foreground">Saldo</span>
-                </div>
-                <div className="p-3 rounded-lg bg-muted">
-                  <span className="block text-2xl font-bold">{stats.results}</span>
-                  <span className="text-xs text-muted-foreground">Resultados</span>
-                </div>
-              </div>
-
-              <h3 className="font-semibold mb-3">Meus Palpites ({predictions.length})</h3>
               {predictions.length === 0 ? (
-                <p className="text-muted-foreground text-sm">Nenhum palpite feito ainda.</p>
+                <p className="text-muted-foreground text-sm text-center py-8">
+                  Nenhum palpite feito ainda.
+                </p>
               ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {predictions.map((p) => (
-                    <div key={p.match_id} className="flex items-center justify-between p-2 rounded bg-muted/50 text-sm">
-                      <span className="truncate flex-1">
-                        {(p.matches as any)?.home_team?.name || "?"} vs {(p.matches as any)?.away_team?.name || "?"}
-                      </span>
-                      <span className="mx-2 font-medium">{p.home_score} - {p.away_score}</span>
-                      {p.points !== null && (
-                        <Badge variant={p.points && p.points >= 3 ? "default" : p.points === 2 ? "secondary" : p.points === 1 ? "outline" : "destructive"} className="text-xs">
-                          {p.points} pts
-                        </Badge>
-                      )}
-                    </div>
-                  ))}
+                <div className="space-y-1.5 max-h-[500px] overflow-y-auto pr-1">
+                  {predictions.map((p) => {
+                    const m = p.matches as any;
+                    const finished = m?.status === "finished" && m?.home_score != null;
+                    const home = m?.home_team?.code || "?";
+                    const away = m?.away_team?.code || "?";
+                    return (
+                      <div
+                        key={p.match_id}
+                        className="flex items-center gap-2 p-2 rounded-md bg-muted/40 text-sm"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate">
+                            {home} <span className="text-muted-foreground">vs</span> {away}
+                          </div>
+                          {finished && (
+                            <div className="text-[10px] text-muted-foreground tabular-nums">
+                              Real: {m.home_score}–{m.away_score}
+                            </div>
+                          )}
+                        </div>
+                        <div className="font-bold tabular-nums shrink-0 text-base">
+                          {p.home_score}–{p.away_score}
+                        </div>
+                        {p.points !== null ? (
+                          <Badge
+                            variant={p.points >= 3 ? "default" : p.points === 2 ? "secondary" : p.points === 1 ? "outline" : "destructive"}
+                            className="text-[10px] shrink-0 min-w-[42px] justify-center"
+                          >
+                            {p.points} pt{p.points === 1 ? "" : "s"}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[10px] shrink-0 min-w-[42px] justify-center opacity-50">
+                            —
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </CardContent>
