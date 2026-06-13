@@ -235,23 +235,28 @@ export default function MatchCard({
                 <span className="text-xs text-muted-foreground shrink-0">Palpite:</span>
                 <Input
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   min="0"
                   max="20"
                   className="w-16 h-8 text-center"
-                  placeholder="0"
+                  placeholder="—"
                   value={editScore.home}
                   onChange={(e) => onEditChange({ ...editScore, home: e.target.value })}
                 />
                 <span className="text-muted-foreground">–</span>
                 <Input
                   type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   min="0"
                   max="20"
                   className="w-16 h-8 text-center"
-                  placeholder="0"
+                  placeholder="—"
                   value={editScore.away}
                   onChange={(e) => onEditChange({ ...editScore, away: e.target.value })}
                 />
+
                 <Button
                   size="sm"
                   className="h-8"
