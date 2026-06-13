@@ -105,59 +105,138 @@ export default function Ranking() {
     return "";
   };
 
+  const top3 = ranking.slice(0, 3);
+  // Display order for podium: 2nd, 1st, 3rd
+  const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
+  const podiumHeights = ["h-20", "h-28", "h-16"];
+  const podiumColors = ["bg-gray-300 dark:bg-gray-600", "bg-yellow-400", "bg-amber-700"];
+
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-6 flex items-center gap-3">
-          <Trophy className="h-8 w-8 text-secondary" />
+      <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
+        <h1 className="text-2xl sm:text-4xl font-bold mb-6 flex items-center gap-2 sm:gap-3">
+          <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-secondary" />
           RANKING GERAL
         </h1>
 
-        <Card>
-          <CardContent className="p-0">
-            {loading ? (
-              <p className="text-center py-12 text-muted-foreground">Carregando...</p>
-            ) : ranking.length === 0 ? (
-              <p className="text-center py-12 text-muted-foreground">Nenhum resultado ainda. Os pontos aparecem quando os jogos terminam.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">#</TableHead>
-                    <TableHead>Jogador</TableHead>
-                    <TableHead className="text-center">Pontos</TableHead>
-                    <TableHead className="text-center">Exatos</TableHead>
-                    <TableHead className="text-center">Saldo</TableHead>
-                    <TableHead className="text-center">Resultados</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {ranking.map((entry, i) => {
-                    const pos = positions[i];
-                    const medalIdx = pos - 1;
-                    return (
-                    <TableRow key={entry.user_id}>
-                      <TableCell className="font-bold">
-                        <span className={`flex items-center gap-1 ${getMedalColor(medalIdx)}`}>
-                          {medalIdx < 3 && <Medal className="h-4 w-4" />}
-                          {pos}º
-                        </span>
-                      </TableCell>
-                      <TableCell className="font-medium">{entry.name || "Anônimo"}</TableCell>
-                      <TableCell className="text-center font-bold text-primary text-lg">{entry.total_points}</TableCell>
-                      <TableCell className="text-center">{entry.exact_scores}</TableCell>
-                      <TableCell className="text-center">{entry.goal_diff}</TableCell>
-                      <TableCell className="text-center">{entry.results_only}</TableCell>
-                    </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+        {loading ? (
+          <Card><CardContent className="py-12 text-center text-muted-foreground">Carregando...</CardContent></Card>
+        ) : ranking.length === 0 ? (
+          <Card><CardContent className="py-12 text-center text-muted-foreground">
+            Nenhum resultado ainda. Os pontos aparecem quando os jogos terminam.
+          </CardContent></Card>
+        ) : (
+          <>
+            {/* Pódio top 3 */}
+            {top3.length >= 1 && top3[0].total_points > 0 && (
+              <Card className="mb-4">
+                <CardContent className="pt-6 pb-4">
+                  <div className="flex items-end justify-center gap-2 sm:gap-4">
+                    {podiumOrder.map((entry) => {
+                      const realPos = top3.indexOf(entry);
+                      const heightIdx = realPos === 0 ? 1 : realPos === 1 ? 0 : 2;
+                      const isMe = entry.user_id === user?.id;
+                      return (
+                        <div key={entry.user_id} className="flex flex-col items-center flex-1 max-w-[120px]">
+                          {realPos === 0 && <Crown className="h-5 w-5 text-yellow-500 mb-1" />}
+                          <div className={`text-center mb-2 ${isMe ? "font-bold" : ""}`}>
+                            <div className="text-xs sm:text-sm font-medium truncate max-w-[100px]">
+                              {entry.name || "Anônimo"}
+                            </div>
+                            <div className="text-lg sm:text-xl font-bold text-primary tabular-nums">
+                              {entry.total_points}
+                            </div>
+                          </div>
+                          <div className={`w-full rounded-t-lg flex items-center justify-center text-white font-bold text-2xl ${podiumHeights[heightIdx]} ${podiumColors[heightIdx]}`}>
+                            {realPos + 1}º
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
             )}
-          </CardContent>
-        </Card>
 
-        <Card className="mt-6">
+            {/* MOBILE: lista compacta */}
+            <Card className="md:hidden">
+              <CardContent className="p-0 divide-y">
+                {ranking.map((entry, i) => {
+                  const pos = positions[i];
+                  const medalIdx = pos - 1;
+                  const isMe = entry.user_id === user?.id;
+                  return (
+                    <div
+                      key={entry.user_id}
+                      className={`flex items-center gap-3 px-3 py-2.5 ${isMe ? "bg-primary/5" : ""}`}
+                    >
+                      <div className={`w-8 text-center font-bold text-sm shrink-0 ${getMedalColor(medalIdx)}`}>
+                        {medalIdx < 3 ? <Medal className="h-4 w-4 inline" /> : `${pos}º`}
+                        {medalIdx < 3 && <span className="block text-[10px]">{pos}º</span>}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-sm truncate">{entry.name || "Anônimo"}</span>
+                          {isMe && <Badge className="bg-primary/20 text-primary text-[9px] px-1.5 py-0">você</Badge>}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground">
+                          {entry.exact_scores} exatos · {entry.goal_diff} saldo · {entry.results_only} result.
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-lg font-bold text-primary tabular-nums leading-none">{entry.total_points}</div>
+                        <div className="text-[10px] text-muted-foreground">pts</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
+            {/* DESKTOP: tabela */}
+            <Card className="hidden md:block">
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16">#</TableHead>
+                      <TableHead>Jogador</TableHead>
+                      <TableHead className="text-center">Pontos</TableHead>
+                      <TableHead className="text-center">Exatos</TableHead>
+                      <TableHead className="text-center">Saldo</TableHead>
+                      <TableHead className="text-center">Resultados</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {ranking.map((entry, i) => {
+                      const pos = positions[i];
+                      const medalIdx = pos - 1;
+                      const isMe = entry.user_id === user?.id;
+                      return (
+                      <TableRow key={entry.user_id} className={isMe ? "bg-primary/5" : ""}>
+                        <TableCell className="font-bold">
+                          <span className={`flex items-center gap-1 ${getMedalColor(medalIdx)}`}>
+                            {medalIdx < 3 && <Medal className="h-4 w-4" />}
+                            {pos}º
+                          </span>
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          {entry.name || "Anônimo"}
+                          {isMe && <Badge className="ml-2 bg-primary/20 text-primary text-[10px]">você</Badge>}
+                        </TableCell>
+                        <TableCell className="text-center font-bold text-primary text-lg">{entry.total_points}</TableCell>
+                        <TableCell className="text-center">{entry.exact_scores}</TableCell>
+                        <TableCell className="text-center">{entry.goal_diff}</TableCell>
+                        <TableCell className="text-center">{entry.results_only}</TableCell>
+                      </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </>
+        )}
           <CardHeader>
             <CardTitle className="text-xl">SISTEMA DE PONTUAÇÃO</CardTitle>
           </CardHeader>
