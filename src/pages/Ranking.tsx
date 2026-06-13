@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trophy, Medal } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Trophy, Medal, Crown } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface RankingEntry {
   user_id: string;
