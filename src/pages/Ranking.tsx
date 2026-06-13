@@ -17,6 +17,7 @@ interface RankingEntry {
 }
 
 export default function Ranking() {
+  const { user } = useAuth();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
