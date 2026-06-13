@@ -11,6 +11,7 @@ import Ranking from "./pages/Ranking";
 import PublicBets from "./pages/PublicBets";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
+import Demo from "./pages/Demo";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
             <Route path="/apostas" element={<PublicBets />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/demo" element={<Demo />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
