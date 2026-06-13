@@ -240,6 +240,44 @@ export type Database = {
         }
         Relationships: []
       }
+      ranking_snapshots: {
+        Row: {
+          created_at: string
+          id: string
+          match_date: string
+          match_id: string
+          position: number
+          total_points: number
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          match_date: string
+          match_id: string
+          position: number
+          total_points: number
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          match_date?: string
+          match_id?: string
+          position?: number
+          total_points?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ranking_snapshots_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: false
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       teams: {
         Row: {
           code: string
@@ -310,6 +348,10 @@ export type Database = {
         Returns: boolean
       }
       phase_multiplier: { Args: { _phase: string }; Returns: number }
+      rebuild_ranking_snapshots: {
+        Args: { _from_date: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"

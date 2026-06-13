@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Medal, Crown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import RankingEvolution from "@/components/RankingEvolution";
 
 interface RankingEntry {
   user_id: string;
@@ -237,6 +238,8 @@ export default function Ranking() {
             </Card>
           </>
         )}
+
+        <RankingEvolution />
 
         <Card className="mt-6">
           <CardHeader>
