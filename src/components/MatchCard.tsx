@@ -260,7 +260,7 @@ export default function MatchCard({
                 </div>
                 <Button
                   size="sm"
-                  className="h-8"
+                  className="h-11 sm:h-9 px-4 shrink-0"
                   disabled={saving || editScore.home === "" || editScore.away === ""}
                   onClick={onSave}
                 >
