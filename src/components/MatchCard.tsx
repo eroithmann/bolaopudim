@@ -211,6 +211,16 @@ export default function MatchCard({
               <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-gray-400" /> Empate ({betDistribution.draw})</span>
               <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-500" /> Fora ({betDistribution.away})</span>
             </div>
+            {(() => {
+              const myBet = prediction
+                ? (prediction.home_score > prediction.away_score ? "home" as const
+                  : prediction.home_score < prediction.away_score ? "away" as const : "draw" as const)
+                : null;
+              const phrase = crowdPhrase(myBet, betDistribution, match.home_team?.name, match.away_team?.name);
+              return (
+                <p className="text-center text-[11px] italic text-muted-foreground mt-1.5">{phrase}</p>
+              );
+            })()}
           </div>
         )}
 
