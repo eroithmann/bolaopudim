@@ -40,6 +40,19 @@ export const formatBrazilDayHeading = (dayKey: string) => {
   return capitalize(dayHeadingFormatter.format(noonUtc));
 };
 
+const shortWeekdayFormatter = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: BRAZIL_TIME_ZONE,
+  weekday: "long",
+});
+
+// Ex: "14/6, Domingo"
+export const formatBrazilDayShort = (dayKey: string) => {
+  const [year, month, day] = dayKey.split("-").map(Number);
+  const noonUtc = new Date(Date.UTC(year, month - 1, day, 15, 0, 0));
+  const weekday = capitalize(shortWeekdayFormatter.format(noonUtc).replace(/-feira$/, ""));
+  return `${day}/${month}, ${weekday}`;
+};
+
 export const formatBrazilMatchDate = (date: string | Date) => {
   const parts = matchDateFormatter.formatToParts(new Date(date));
   const get = (type: Intl.DateTimeFormatPartTypes) => getPart(parts, type);
