@@ -23,7 +23,7 @@ const METRICS: { key: MetricKey; label: string; emoji: string; suffix?: string }
   { key: "forgottenMatches", label: "Mais palpites esquecidos", emoji: "😴" },
   { key: "againstMajority", label: "Mais apostas contra a maioria", emoji: "🙅" },
   { key: "drawsPredicted", label: "Mais empates apostados", emoji: "🤝" },
-  { key: "currentRoundPoints", label: "Mais pontos na rodada atual", emoji: "⚡" },
+  { key: "currentRoundPoints", label: "Mais pontos no dia atual", emoji: "⚡" },
   { key: "rankClimb", label: "Maior subida no ranking", emoji: "📈", suffix: " pos" },
 ];
 

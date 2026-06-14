@@ -8,7 +8,7 @@ import type {
   MatchLite, PredictionLite, ProfileLite, UserAgg,
 } from "@/lib/gamification";
 import { isFinished } from "@/lib/gamification";
-import { getBrazilDayKey } from "@/lib/brazilDate";
+import { getBrazilDayKey, formatBrazilDayShort } from "@/lib/brazilDate";
 
 interface Props {
   profiles: ProfileLite[];
@@ -110,7 +110,7 @@ export default function HeadToHead({ profiles, matches, predictions, aggs, defau
             <Row label="Palpites iguais" a={cmp.same} b={cmp.same} neutral />
             <Row label="Palpites diferentes" a={cmp.diff} b={cmp.diff} neutral />
             {lastRound && (
-              <Row label={`Última rodada (${lastRound.key})`} a={lastRound.a} b={lastRound.b} />
+              <Row label={`Último dia (${formatBrazilDayShort(lastRound.key)})`} a={lastRound.a} b={lastRound.b} />
             )}
           </div>
         )}
