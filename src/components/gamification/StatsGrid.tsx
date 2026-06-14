@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3 } from "lucide-react";
 import type { PersonalStats } from "@/lib/gamification";
+import { formatBrazilDayShort } from "@/lib/brazilDate";
 
 interface Props {
   stats: PersonalStats;
