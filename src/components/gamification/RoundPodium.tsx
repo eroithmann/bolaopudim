@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Award, TrendingUp, TrendingDown, Skull, Target, Crown, Zap } from "lucide-react";
 import type { RoundPodium as RoundPodiumType } from "@/lib/gamification";
+import { formatBrazilDayShort } from "@/lib/brazilDate";
 
 interface Props { podium: RoundPodiumType }
 
