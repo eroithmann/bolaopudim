@@ -11,7 +11,7 @@ import { User, Save } from "lucide-react";
 import { useGamificationData } from "@/hooks/useGamificationData";
 import {
   computePersonalStats, computeBettorProfile, computeBadges, aggregateUsers,
-  isFinished, isExact, isWinnerHit, betSide, favoriteSide, matchResult,
+  isFinished, isWinnerHit, betSide, favoriteSide, matchResult,
 } from "@/lib/gamification";
 import BettorProfileCard from "@/components/gamification/BettorProfileCard";
 import StatsGrid from "@/components/gamification/StatsGrid";

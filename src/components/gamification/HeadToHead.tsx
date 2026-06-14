@@ -7,7 +7,7 @@ import {
 import type {
   MatchLite, PredictionLite, ProfileLite, UserAgg,
 } from "@/lib/gamification";
-import { isFinished, isExact, isWinnerHit } from "@/lib/gamification";
+import { isFinished } from "@/lib/gamification";
 import { getBrazilDayKey } from "@/lib/brazilDate";
 
 interface Props {
