@@ -16,6 +16,7 @@ import {
 import BettorProfileCard from "@/components/gamification/BettorProfileCard";
 import StatsGrid from "@/components/gamification/StatsGrid";
 import BadgeGrid from "@/components/gamification/BadgeGrid";
+import ShareCard from "@/components/gamification/ShareCard";
 
 export default function Profile() {
   const { user, profile, loading: authLoading } = useAuth();
@@ -139,6 +140,14 @@ export default function Profile() {
 
         {stats && (
           <>
+            <div className="flex justify-end">
+              <ShareCard
+                userName={profile?.name || user?.email?.split("@")[0] || "Apostador"}
+                position={currentPosition}
+                stats={stats}
+                badges={badges}
+              />
+            </div>
             <BettorProfileCard tags={tags} />
             <StatsGrid stats={stats} currentPosition={currentPosition} />
             <BadgeGrid badges={badges} />
