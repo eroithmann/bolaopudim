@@ -10,6 +10,7 @@ import Games from "./pages/Games";
 import Ranking from "./pages/Ranking";
 import PublicBets from "./pages/PublicBets";
 import Profile from "./pages/Profile";
+import Stats from "./pages/Stats";
 import Admin from "./pages/Admin";
 import Demo from "./pages/Demo";
 import NotFound from "./pages/NotFound";
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/games" element={<Games />} />
             <Route path="/ranking" element={<Ranking />} />
             <Route path="/apostas" element={<PublicBets />} />
+            <Route path="/stats" element={<Stats />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<Admin />} />
             <Route path="/demo" element={<Demo />} />

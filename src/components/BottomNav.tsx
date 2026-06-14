@@ -1,12 +1,13 @@
 import { Link, useLocation } from "react-router-dom";
-import { Home, Calendar, Users, Trophy, User } from "lucide-react";
+import { Home, Calendar, Users, Trophy, BarChart3, User } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 const items = [
   { to: "/", label: "Início", icon: Home },
   { to: "/games", label: "Jogos", icon: Calendar },
-  { to: "/apostas", label: "Apostas", icon: Users },
+  { to: "/apostas", label: "Galera", icon: Users },
   { to: "/ranking", label: "Ranking", icon: Trophy },
+  { to: "/stats", label: "Stats", icon: BarChart3 },
   { to: "/profile", label: "Perfil", icon: User, authOnly: true },
 ];
 
