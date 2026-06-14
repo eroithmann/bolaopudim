@@ -221,12 +221,25 @@ export default function Games() {
     setSaving((s) => ({ ...s, [matchId]: false }));
   };
 
-  const matchesByDay = matches.reduce<Record<string, MatchWithTeams[]>>((acc, m) => {
+  const matchesByDay = useMemo(() => matches.reduce<Record<string, MatchWithTeams[]>>((acc, m) => {
     const key = getBrazilDayKey(m.match_date);
     (acc[key] ||= []).push(m);
     return acc;
-  }, {});
-  const orderedDays = Object.keys(matchesByDay).sort();
+  }, {}), [matches]);
+  const orderedDays = useMemo(() => Object.keys(matchesByDay).sort(), [matchesByDay]);
+
+  // Dia padrão aberto: o que contém o próximo jogo (ou o mais recente, se todos já passaram)
+  const defaultOpenDay = useMemo(() => {
+    if (orderedDays.length === 0) return null;
+    const today = getBrazilDayKey(new Date().toISOString());
+    const upcoming = orderedDays.find((d) => d >= today);
+    return upcoming ?? orderedDays[orderedDays.length - 1];
+  }, [orderedDays]);
+
+  const [openDays, setOpenDays] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (defaultOpenDay) setOpenDays((prev) => ({ ...prev, [defaultOpenDay]: true }));
+  }, [defaultOpenDay]);
 
   return (
     <Layout>
