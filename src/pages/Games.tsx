@@ -220,9 +220,15 @@ export default function Games() {
     setSaving((s) => ({ ...s, [matchId]: false }));
   };
 
-  // Agrupa todos os jogos por dia (YYYY-MM-DD)
+  // Agrupa todos os jogos por dia no fuso de São Paulo (Brasília)
+  const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
   const matchesByDay = matches.reduce<Record<string, MatchWithTeams[]>>((acc, m) => {
-    const key = m.match_date.slice(0, 10);
+    const key = dayKeyFmt.format(new Date(m.match_date)); // YYYY-MM-DD em -03
     (acc[key] ||= []).push(m);
     return acc;
   }, {});
