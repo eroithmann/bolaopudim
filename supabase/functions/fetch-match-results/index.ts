@@ -181,16 +181,15 @@ serve(async (req) => {
     dateToObj.setDate(dateToObj.getDate() + 2);
     const dateTo = dateToObj.toISOString().split("T")[0];
 
-    let apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo, "status=FINISHED");
-    if (apiMatches.length === 0) {
-      apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo);
-    }
+    // Always fetch ALL statuses; we filter to FINISHED in code so that
+    // matches still IN_PLAY / PAUSED / etc don't get reported as "names didn't match"
+    const apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo);
 
     const finishedMatches = apiMatches.filter(m =>
       m.status === "FINISHED" && m.score?.fullTime?.home != null
     );
 
-    console.log(`${finishedMatches.length} usable FINISHED matches with scores`);
+    console.log(`${apiMatches.length} total API matches, ${finishedMatches.length} FINISHED with scores`);
     for (const m of finishedMatches.slice(0, 10)) {
       console.log(`  API: ${m.homeTeam?.name} vs ${m.awayTeam?.name} | ${m.utcDate} | ${m.score?.fullTime?.home}-${m.score?.fullTime?.away} | id=${m.id}`);
     }
@@ -226,15 +225,28 @@ serve(async (req) => {
       }
 
       if (!apiMatch) {
-        // Determine reason: did API return any game on this date involving these teams?
-        const apiHasOnDate = apiMatches.some(m => datesAreClose(match.match_date, m.utcDate ?? "", 1));
-        const reason = apiHasOnDate
-          ? "Times não bateram (verifique aliases)"
-          : "API não retornou jogo finalizado nesta data";
+        // Look for the same fixture across ALL statuses (not just FINISHED) to
+        // give a precise reason: still in play, not yet started, or really missing.
+        const anyStatusMatch = apiMatches.find(m =>
+          matchesTeamName(homeTeam.name, homeTeam.code, m.homeTeam?.name ?? "") &&
+          matchesTeamName(awayTeam.name, awayTeam.code, m.awayTeam?.name ?? "") &&
+          datesAreClose(match.match_date, m.utcDate ?? "")
+        );
+
+        let reason: string;
+        if (anyStatusMatch) {
+          reason = `Jogo encontrado na API mas status é "${anyStatusMatch.status}" (ainda não finalizado)`;
+        } else {
+          const apiHasOnDate = apiMatches.some(m => datesAreClose(match.match_date, m.utcDate ?? "", 1));
+          reason = apiHasOnDate
+            ? "Times não bateram (verifique aliases)"
+            : "API não retornou jogo nesta data";
+        }
         unmatched.push({ game: label, reason });
         console.log(`❌ NO MATCH: ${label} — ${reason}`);
         continue;
       }
+
 
       const homeScore = Number(apiMatch.score.fullTime.home);
       const awayScore = Number(apiMatch.score.fullTime.away);
