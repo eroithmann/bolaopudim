@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Lock, MapPin, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
 import { formatBrazilMatchDate } from "@/lib/brazilDate";
+import { crowdPhrase } from "@/lib/gamification";
 
 interface MatchTeam {
   name: string;
