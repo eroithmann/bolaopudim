@@ -8,7 +8,7 @@ import type {
   MatchLite, PredictionLite, ProfileLite, UserAgg,
 } from "@/lib/gamification";
 import { isFinished } from "@/lib/gamification";
-import { getBrazilDayKey } from "@/lib/brazilDate";
+import { getBrazilDayKey, formatBrazilDayShort } from "@/lib/brazilDate";
 
 interface Props {
   profiles: ProfileLite[];
