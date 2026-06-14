@@ -1,6 +1,6 @@
 const BRAZIL_TIME_ZONE = "America/Sao_Paulo";
 
-const dayKeyFormatter = new Intl.DateTimeFormat("en-CA", {
+const dayKeyFormatter = new Intl.DateTimeFormat("pt-BR", {
   timeZone: BRAZIL_TIME_ZONE,
   year: "numeric",
   month: "2-digit",
@@ -26,7 +26,13 @@ const matchDateFormatter = new Intl.DateTimeFormat("pt-BR", {
 
 const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
-export const getBrazilDayKey = (date: string | Date) => dayKeyFormatter.format(new Date(date));
+const getPart = (parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes) =>
+  parts.find((part) => part.type === type)?.value ?? "";
+
+export const getBrazilDayKey = (date: string | Date) => {
+  const parts = dayKeyFormatter.formatToParts(new Date(date));
+  return `${getPart(parts, "year")}-${getPart(parts, "month")}-${getPart(parts, "day")}`;
+};
 
 export const formatBrazilDayHeading = (dayKey: string) => {
   const [year, month, day] = dayKey.split("-").map(Number);
@@ -36,6 +42,6 @@ export const formatBrazilDayHeading = (dayKey: string) => {
 
 export const formatBrazilMatchDate = (date: string | Date) => {
   const parts = matchDateFormatter.formatToParts(new Date(date));
-  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  const get = (type: Intl.DateTimeFormatPartTypes) => getPart(parts, type);
   return `${capitalize(get("weekday"))}, ${get("day")}/${get("month")} · ${get("hour")}:${get("minute")}`;
 };
