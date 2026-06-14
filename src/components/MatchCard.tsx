@@ -1,12 +1,12 @@
 import { getFlagUrl } from "@/lib/teamFlags";
-import { format, differenceInSeconds } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { differenceInSeconds } from "date-fns";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, MapPin, Clock } from "lucide-react";
 import { useState, useEffect } from "react";
+import { formatBrazilMatchDate } from "@/lib/brazilDate";
 
 interface MatchTeam {
   name: string;
@@ -84,9 +84,7 @@ export default function MatchCard({
     return `${m}m ${s.toString().padStart(2, "0")}s`;
   };
 
-  const dayOfWeek = format(matchDate, "EEEE", { locale: ptBR });
-  const dateStr = format(matchDate, "dd/MM · HH:mm", { locale: ptBR });
-  const capitalizedDay = dayOfWeek.charAt(0).toUpperCase() + dayOfWeek.slice(1);
+  const dateStr = formatBrazilMatchDate(matchDate);
 
   const getPointsBadge = (points: number | null) => {
     if (points === null) return null;
@@ -101,7 +99,7 @@ export default function MatchCard({
         {/* Header: date + venue + group */}
         <div className="flex justify-between items-start mb-3 text-[11px] sm:text-xs text-muted-foreground gap-2">
           <div className="flex flex-col gap-0.5 min-w-0">
-            <span className="font-medium truncate">{capitalizedDay}, {dateStr}</span>
+            <span className="font-medium truncate">{dateStr}</span>
             {match.venue && (
               <span className="flex items-center gap-1 truncate">
                 <MapPin className="h-3 w-3 shrink-0" />
