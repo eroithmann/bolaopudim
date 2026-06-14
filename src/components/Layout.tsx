@@ -19,6 +19,7 @@ import {
   Menu,
   Users,
   LogIn,
+  BarChart3,
 } from "lucide-react";
 import BottomNav from "./BottomNav";
 
@@ -27,6 +28,7 @@ const navItems = [
   { to: "/games", label: "Jogos", icon: Calendar },
   { to: "/apostas", label: "Apostas da Galera", icon: Users },
   { to: "/ranking", label: "Ranking", icon: Trophy },
+  { to: "/stats", label: "Stats", icon: BarChart3 },
 ];
 
 export default function Layout({ children }: { children: ReactNode }) {
