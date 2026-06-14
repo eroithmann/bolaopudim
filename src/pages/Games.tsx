@@ -253,40 +253,61 @@ export default function Games() {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-8">
+          <div className="space-y-3">
             {orderedDays.map((day) => {
               const label = formatBrazilDayHeading(day);
+              const isOpen = openDays[day] ?? false;
+              const dayMatches = matchesByDay[day];
+              const finishedCount = dayMatches.filter((m) => m.status === "finished").length;
               return (
-                <section key={day}>
-                  <div className="sticky top-16 z-10 -mx-4 px-4 py-2 mb-3 bg-background/95 backdrop-blur border-b">
-                    <h2 className="text-lg font-bold capitalize text-primary">
-                      {label}
-                    </h2>
-                  </div>
-                  <div className="space-y-3">
-                    {matchesByDay[day].map((match) => {
-                      const pred = predictions[match.id];
-                      const edit = editScores[match.id] ?? {
-                        home: pred ? String(pred.home_score) : "",
-                        away: pred ? String(pred.away_score) : "",
-                      };
-                      return (
-                        <MatchCard
-                          key={match.id}
-                          match={match}
-                          prediction={pred}
-                          editScore={edit}
-                          saving={!!saving[match.id]}
-                          isLoggedIn={!!user}
-                          odds={odds[match.id] || null}
-                          betDistribution={betDistribution[match.id] || null}
-                          onEditChange={(scores) => setEditScores((s) => ({ ...s, [match.id]: scores }))}
-                          onSave={() => savePrediction(match.id)}
-                        />
-                      );
-                    })}
-                  </div>
-                </section>
+                <Card key={day}>
+                  <Collapsible
+                    open={isOpen}
+                    onOpenChange={(o) => setOpenDays((prev) => ({ ...prev, [day]: o }))}
+                  >
+                    <CollapsibleTrigger className="w-full text-left">
+                      <div className="flex items-center justify-between gap-3 p-3 sm:p-4 hover:bg-muted/40 transition-colors">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <ChevronDown
+                            className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${isOpen ? "rotate-180" : ""}`}
+                          />
+                          <h2 className="text-base sm:text-lg font-bold capitalize text-primary truncate">
+                            {label}
+                          </h2>
+                        </div>
+                        <div className="shrink-0 text-xs text-muted-foreground">
+                          {dayMatches.length} {dayMatches.length === 1 ? "jogo" : "jogos"}
+                          {finishedCount > 0 && ` · ${finishedCount} finalizado${finishedCount > 1 ? "s" : ""}`}
+                        </div>
+                      </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-3 pb-3 sm:px-4 sm:pb-4 pt-0 space-y-3">
+                        {dayMatches.map((match) => {
+                          const pred = predictions[match.id];
+                          const edit = editScores[match.id] ?? {
+                            home: pred ? String(pred.home_score) : "",
+                            away: pred ? String(pred.away_score) : "",
+                          };
+                          return (
+                            <MatchCard
+                              key={match.id}
+                              match={match}
+                              prediction={pred}
+                              editScore={edit}
+                              saving={!!saving[match.id]}
+                              isLoggedIn={!!user}
+                              odds={odds[match.id] || null}
+                              betDistribution={betDistribution[match.id] || null}
+                              onEditChange={(scores) => setEditScores((s) => ({ ...s, [match.id]: scores }))}
+                              onSave={() => savePrediction(match.id)}
+                            />
+                          );
+                        })}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                </Card>
               );
             })}
           </div>
