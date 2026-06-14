@@ -35,14 +35,14 @@ export default function StatsGrid({ stats, currentPosition }: Props) {
           <Cell label="Placares exatos" value={stats.exactScores} />
           <Cell label="Taxa de acerto" value={`${Math.round(stats.accuracy * 100)}%`} />
           <Cell
-            label="Melhor rodada"
+            label="Melhor dia"
             value={stats.bestRound ? stats.bestRound.points : "—"}
-            hint={stats.bestRound?.dayKey}
+            hint={stats.bestRound ? formatBrazilDayShort(stats.bestRound.dayKey) : undefined}
           />
           <Cell
-            label="Pior rodada"
+            label="Pior dia"
             value={stats.worstRound ? stats.worstRound.points : "—"}
-            hint={stats.worstRound?.dayKey}
+            hint={stats.worstRound ? formatBrazilDayShort(stats.worstRound.dayKey) : undefined}
           />
           <Cell label="Seq. acertos" value={stats.longestHitStreak} />
           <Cell label="Seq. erros" value={stats.longestMissStreak} />
