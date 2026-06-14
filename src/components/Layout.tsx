@@ -52,13 +52,15 @@ export default function Layout({ children }: { children: ReactNode }) {
               className="font-extrabold tracking-tight leading-none whitespace-nowrap"
               style={{ fontFamily: "'Outfit', sans-serif" }}
             >
-              <span className="hidden md:inline text-[1.6rem]">
+              <span className="hidden md:inline text-xl lg:text-[1.6rem]">
                 Bolão{" "}
                 <span className="bg-gradient-to-r from-secondary to-accent bg-clip-text text-transparent italic">
                   do Zap
                 </span>
-                <span className="text-primary-foreground/60 mx-1.5 font-light">·</span>
-                <span className="text-secondary font-black">2026</span>
+                <span className="hidden lg:inline">
+                  <span className="text-primary-foreground/60 mx-1.5 font-light">·</span>
+                  <span className="text-secondary font-black">2026</span>
+                </span>
               </span>
               <span className="md:hidden text-lg">
                 Bolão <span className="text-secondary font-black">2026</span>
