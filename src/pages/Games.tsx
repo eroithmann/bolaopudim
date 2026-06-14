@@ -3,10 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
-import { format, parseISO } from "date-fns";
-import { ptBR } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
 import MatchCard from "@/components/MatchCard";
+import { formatBrazilDayHeading, getBrazilDayKey } from "@/lib/brazilDate";
 
 interface MatchWithTeams {
   id: string;
@@ -220,15 +219,8 @@ export default function Games() {
     setSaving((s) => ({ ...s, [matchId]: false }));
   };
 
-  // Agrupa todos os jogos por dia no fuso de São Paulo (Brasília)
-  const dayKeyFmt = new Intl.DateTimeFormat("en-CA", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
   const matchesByDay = matches.reduce<Record<string, MatchWithTeams[]>>((acc, m) => {
-    const key = dayKeyFmt.format(new Date(m.match_date)); // YYYY-MM-DD em -03
+    const key = getBrazilDayKey(m.match_date);
     (acc[key] ||= []).push(m);
     return acc;
   }, {});
@@ -248,8 +240,7 @@ export default function Games() {
         ) : (
           <div className="space-y-8">
             {orderedDays.map((day) => {
-              const dayDate = parseISO(day + "T12:00:00Z");
-              const label = format(dayDate, "EEEE, d 'de' MMMM", { locale: ptBR });
+              const label = formatBrazilDayHeading(day);
               return (
                 <section key={day}>
                   <div className="sticky top-16 z-10 -mx-4 px-4 py-2 mb-3 bg-background/95 backdrop-blur border-b">
