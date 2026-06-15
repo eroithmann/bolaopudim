@@ -97,7 +97,7 @@ export default function PublicBets() {
       <div className="max-w-[1400px] mx-auto px-4 py-6 sm:py-8">
         <h1 className="text-2xl sm:text-4xl font-bold mb-2 flex items-center gap-2 sm:gap-3">
           <Users className="h-6 w-6 sm:h-8 sm:w-8 text-secondary" />
-          APOSTAS DA GALERA
+          Apostas da galera
         </h1>
         <p className="text-muted-foreground mb-6 flex items-start gap-2 text-xs sm:text-sm">
           <Lock className="h-4 w-4 shrink-0 mt-0.5" />
