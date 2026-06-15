@@ -92,11 +92,12 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
   }
 
   h1, h2, h3, h4, h5 {
-    font-family: 'Bebas Neue', sans-serif;
-    letter-spacing: 0.02em;
+    font-family: 'Outfit', sans-serif;
+    letter-spacing: -0.01em;
   }
 }
