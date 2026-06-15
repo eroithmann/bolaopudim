@@ -148,6 +148,18 @@ export default function Ranking() {
     return "";
   };
 
+  const PositionDelta = ({ userId, currentPos }: { userId: string; currentPos: number }) => {
+    const prev = previousPositions[userId];
+    if (prev === undefined) return null;
+    if (currentPos < prev) {
+      return <ArrowUp className="h-3.5 w-3.5 text-emerald-600 shrink-0" aria-label={`subiu ${prev - currentPos}`} />;
+    }
+    if (currentPos > prev) {
+      return <ArrowDown className="h-3.5 w-3.5 text-red-600 shrink-0" aria-label={`caiu ${currentPos - prev}`} />;
+    }
+    return null;
+  };
+
   const top3 = ranking.slice(0, 3);
   // Display order for podium: 2nd, 1st, 3rd
   const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
