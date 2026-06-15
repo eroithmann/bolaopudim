@@ -20,6 +20,7 @@ interface RankingEntry {
 export default function Ranking() {
   const { user } = useAuth();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
+  const [previousPositions, setPreviousPositions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
