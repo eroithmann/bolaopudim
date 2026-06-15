@@ -87,6 +87,47 @@ export default function Ranking() {
       return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
     });
     setRanking(sorted);
+
+    // Posições anteriores: usar último snapshot do penúltimo dia com jogos finalizados
+    const { data: snapshots } = await supabase
+      .from("ranking_snapshots")
+      .select("user_id, match_date, total_points")
+      .order("match_date", { ascending: true });
+
+    if (snapshots && snapshots.length > 0) {
+      // datas distintas (apenas a parte YYYY-MM-DD)
+      const dayKey = (d: string) => d.slice(0, 10);
+      const uniqueDays = Array.from(new Set(snapshots.map((s: any) => dayKey(s.match_date)))).sort();
+      if (uniqueDays.length >= 2) {
+        const prevDay = uniqueDays[uniqueDays.length - 2];
+        // último snapshot de cada usuário nesse dia
+        const lastByUser = new Map<string, number>();
+        snapshots.forEach((s: any) => {
+          if (dayKey(s.match_date) === prevDay) {
+            lastByUser.set(s.user_id, s.total_points);
+          }
+        });
+        // ordenar com mesma lógica do ranking atual para gerar posições com empate
+        const profileName = new Map(sorted.map((e) => [e.user_id, e.name]));
+        const prevSorted = Array.from(lastByUser.entries())
+          .map(([user_id, total_points]) => ({ user_id, total_points, name: profileName.get(user_id) || "" }))
+          .sort((a, b) => {
+            if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+            return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
+          });
+        const prevPos: Record<string, number> = {};
+        prevSorted.forEach((e, i) => {
+          let pos = i + 1;
+          for (let j = i - 1; j >= 0; j--) {
+            if (prevSorted[j].total_points === e.total_points) pos = j + 1;
+            else break;
+          }
+          prevPos[e.user_id] = pos;
+        });
+        setPreviousPositions(prevPos);
+      }
+    }
+
     setLoading(false);
   };
 
