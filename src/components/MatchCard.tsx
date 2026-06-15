@@ -121,6 +121,15 @@ export default function MatchCard({
           </div>
         </div>
 
+        {/* Broadcasts (Brasil) */}
+        {broadcasts && broadcasts.length > 0 && (
+          <div className="mb-2 text-[11px] text-muted-foreground flex items-start gap-1.5">
+            <span aria-hidden>📺</span>
+            <span className="line-clamp-1"><span className="font-medium">TV:</span> {broadcasts.join(", ")}</span>
+          </div>
+        )}
+
+
         {/* Teams row */}
         <div className="flex items-center justify-center gap-2 sm:gap-4">
           {/* Home team */}
