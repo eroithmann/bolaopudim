@@ -189,6 +189,10 @@ export default function Admin() {
               <TrendingUp className={`h-4 w-4 mr-2 ${refreshingOdds ? "animate-spin" : ""}`} />
               {refreshingOdds ? "Atualizando..." : "Atualizar Odds"}
             </Button>
+            <Button onClick={refreshBroadcasts} disabled={refreshingBroadcasts} variant="outline">
+              <Tv className={`h-4 w-4 mr-2 ${refreshingBroadcasts ? "animate-spin" : ""}`} />
+              {refreshingBroadcasts ? "Atualizando..." : "Atualizar Transmissões"}
+            </Button>
           </div>
         </div>
 
