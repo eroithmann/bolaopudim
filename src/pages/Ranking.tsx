@@ -303,7 +303,7 @@ export default function Ranking() {
 
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle className="text-xl">SISTEMA DE PONTUAÇÃO</CardTitle>
+            <CardTitle className="text-xl">Sistema de pontuação</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
