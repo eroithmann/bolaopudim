@@ -60,7 +60,7 @@ const teamAliases: Record<string, string[]> = {
   "Costa do Marfim": ["ivory coast", "cote d ivoire"],
   "Argélia": ["algeria", "algerie"],
   "South Africa": ["south africa", "africa do sul"],
-  "Cape Verde": ["cape verde", "cabo verde"],
+  "Cape Verde": ["cape verde", "cabo verde", "cape verde islands"],
   "Suíça": ["switzerland", "suisse", "schweiz"],
   "Áustria": ["austria"],
   "Dinamarca": ["denmark", "danmark"],
