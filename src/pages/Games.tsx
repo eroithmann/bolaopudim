@@ -314,6 +314,7 @@ export default function Games() {
                               isLoggedIn={!!user}
                               odds={odds[match.id] || null}
                               betDistribution={betDistribution[match.id] || null}
+                              broadcasts={broadcasts[match.id] || null}
                               onEditChange={(scores) => setEditScores((s) => ({ ...s, [match.id]: scores }))}
                               onSave={() => savePrediction(match.id)}
                             />
