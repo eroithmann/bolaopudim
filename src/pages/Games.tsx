@@ -74,6 +74,7 @@ export default function Games() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [odds, setOdds] = useState<Record<string, OddsData>>({});
   const [betDistribution, setBetDistribution] = useState<Record<string, { home: number; draw: number; away: number; total: number }>>({});
+  const [broadcasts, setBroadcasts] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     fetchMatches();
