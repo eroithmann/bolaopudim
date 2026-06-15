@@ -232,6 +232,7 @@ export default function Ranking() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm truncate">{entry.name || "Anônimo"}</span>
+                          <PositionDelta userId={entry.user_id} currentPos={pos} />
                           {isMe && <Badge className="bg-primary/20 text-primary text-[9px] px-1.5 py-0">você</Badge>}
                         </div>
                         <div className="text-[10px] text-muted-foreground">
