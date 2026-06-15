@@ -58,9 +58,9 @@ const teamAliases: Record<string, string[]> = {
   "Irlanda": ["ireland", "republic of ireland"],
   "Irlanda do Norte": ["northern ireland"],
   "Costa do Marfim": ["ivory coast", "cote d ivoire"],
-  "Argélia": ["algeria", "algerie"],
-  "South Africa": ["south africa", "africa do sul"],
-  "Cape Verde": ["cape verde", "cabo verde", "cape verde islands"],
+  "Algeria": ["algeria", "algerie", "argelia"],
+  "South Africa": ["south africa", "africa do sul", "rsa"],
+  "Cape Verde": ["cape verde", "cabo verde", "cape verde islands", "cv"],
   "Suíça": ["switzerland", "suisse", "schweiz"],
   "Áustria": ["austria"],
   "Dinamarca": ["denmark", "danmark"],
@@ -97,17 +97,28 @@ function normalize(name: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "") // strip accents
-    .replace(/[.,'`’\-]/g, " ")        // punctuation → space
+    .replace(/[.,'`’\-&]/g, " ")       // punctuation → space
     .replace(/\b(fc|cf|sc|afc|sk|ac|cd)\b/g, "") // common club suffixes
+    // strip noise tokens commonly added by data providers
+    .replace(/\b(islands?|republic|national|team|of|the|and|y|e|do|da|de|dos|das)\b/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+/** Returns true if every token of `a` is present in `b`'s token set (a ⊆ b). */
+function tokenSubset(a: string, b: string): boolean {
+  const at = a.split(" ").filter(Boolean);
+  const bt = new Set(b.split(" ").filter(Boolean));
+  if (at.length === 0 || bt.size === 0) return false;
+  return at.every((t) => bt.has(t));
 }
 
 /**
  * Matching strategy (in order):
  * 1. Normalized exact match
- * 2. Normalized alias match
- * 3. Code match (3-letter team code present in API name as a whole token)
+ * 2. Normalized alias match (alias list OR alias is token-subset of api/db name)
+ * 3. Bidirectional token-subset between db name and api name
+ * 4. Code match (3-letter team code present in API name as a whole token)
  */
 function matchesTeamName(dbName: string, dbCode: string | null, apiName: string): boolean {
   const a = normalize(apiName);
@@ -116,7 +127,13 @@ function matchesTeamName(dbName: string, dbCode: string | null, apiName: string)
   if (a === d) return true;
 
   const aliases = (teamAliases[dbName] ?? []).map(normalize);
-  if (aliases.includes(a)) return true;
+  for (const al of aliases) {
+    if (!al) continue;
+    if (al === a) return true;
+    if (tokenSubset(al, a) || tokenSubset(a, al)) return true;
+  }
+
+  if (tokenSubset(d, a) || tokenSubset(a, d)) return true;
 
   if (dbCode) {
     const code = dbCode.toLowerCase();
