@@ -28,7 +28,7 @@ export default function Stats() {
       <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 space-y-4">
         <h1 className="text-2xl sm:text-4xl font-bold mb-2 flex items-center gap-2 sm:gap-3">
           <BarChart3 className="h-6 w-6 sm:h-8 sm:w-8 text-secondary" />
-          ESTATÍSTICAS DA GALERA
+          Estatísticas da galera
         </h1>
 
         {isLoading || !data ? (
