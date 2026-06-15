@@ -307,7 +307,7 @@ export default function Ranking() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">PONTOS BASE</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">Pontos base</h3>
               <div className="grid sm:grid-cols-5 gap-4 text-center">
                 <div className="p-4 rounded-lg bg-primary/10">
                   <span className="block text-3xl font-bold text-primary">5</span>
