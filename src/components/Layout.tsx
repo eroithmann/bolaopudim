@@ -1,6 +1,8 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
+
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -20,7 +22,10 @@ import {
   Users,
   LogIn,
   BarChart3,
+  Moon,
+  Sun,
 } from "lucide-react";
+
 import BottomNav from "./BottomNav";
 
 const navItems = [
@@ -34,7 +39,9 @@ const navItems = [
 export default function Layout({ children }: { children: ReactNode }) {
   const { user, isAdmin, profile, signOut } = useAuth();
   const location = useLocation();
+  const { theme, setTheme } = useTheme();
   const [drawerOpen, setDrawerOpen] = useState(false);
+
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -118,7 +125,18 @@ export default function Layout({ children }: { children: ReactNode }) {
                 </Button>
               </Link>
             )}
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-primary-foreground hover:bg-primary-foreground/10 h-9 w-9 relative"
+              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              aria-label="Alternar tema"
+            >
+              <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+              <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+            </Button>
             {user ? (
+
               <Button
                 variant="ghost"
                 size="sm"
