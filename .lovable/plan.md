@@ -1,97 +1,50 @@
+## Objetivo
+Mostrar em cada card de jogo, como texto simples, os canais que transmitem no Brasil (ex.: "TV: Globo, SporTV, CazéTV"), usando o Sofascore como fonte.
 
-# Pacote de Gamificação — Bolão Pudim
+## Arquitetura
 
-Implementação **incremental**, sem alterar regras de pontuação, autenticação, bloqueio de palpites ou lógica admin. Tudo deriva dos dados já existentes (`matches`, `predictions`, `profiles`, `ranking_snapshots`, `odds_cache`, `teams`).
+### 1. Tabela de cache
+Nova tabela `match_broadcasts` para não scrapear toda hora:
+- `match_id` (FK matches, unique)
+- `channels` (text[])
+- `source` (text, default 'sofascore')
+- `fetched_at` (timestamptz)
+- `updated_at`
+- RLS: SELECT público (anon+authenticated), INSERT/UPDATE só service_role (edge function).
+- GRANTs conforme política.
 
-## Princípios
-- Cálculos no cliente sempre que possível (1 fetch agregado por página), com hook `useGamificationData` que carrega: todos os jogos + odds + meus palpites + (quando necessário) palpites públicos de jogos já bloqueados.
-- "Maioria" = % de palpites públicos de cada jogo (apenas jogos já iniciados, respeitando o bloqueio atual).
-- "Favorito/Zebra" = derivado de `odds_cache` (menor odd = favorito). Se faltar odd, jogo é ignorado nessa métrica.
-- "Rodada" = agrupamento por data (Brasília) usando `getBrazilDayKey` já existente.
-- Sem dados suficientes → empty state amigável, nunca dado inventado.
+### 2. Edge function `fetch-broadcasts`
+- Roda sob demanda (botão admin) e também via cron diário.
+- Para cada `match` futuro / nas próximas 72h sem broadcast cacheado:
+  1. Buscar evento no Sofascore: `GET https://api.sofascore.com/api/v1/search/events?q={time1}+{time2}` ou usar o endpoint de agenda por data `https://api.sofascore.com/api/v1/sport/football/scheduled-events/{yyyy-MM-dd}` e casar por nomes dos times.
+  2. Com o `eventId`, chamar `https://api.sofascore.com/api/v1/event/{id}/channels/BR` (endpoint público que o site usa) → lista de `channelId`s.
+  3. Para cada `channelId`, buscar nome via `https://api.sofascore.com/api/v1/tv/channel/{id}` (cachear em memória durante a execução).
+  4. Filtrar/normalizar: remover duplicatas, manter ordem (TV aberta → fechada → streaming). Map de nomes (ex.: "Globo" / "SporTV" / "CazéTV" / "GE" etc.).
+  5. Upsert em `match_broadcasts`.
+- Headers: User-Agent de browser; tratar 404 (sem transmissão BR conhecida) gravando `channels = []` para não re-tentar logo.
+- CORS padrão + validação de input.
 
-## Entregas (ordem de implementação)
+### 3. Trigger no admin
+Botão "Atualizar transmissões" na página Admin, ao lado dos botões existentes (resultados/odds), chamando a edge function. Toast com nº de jogos atualizados.
 
-### Fase 1 — Fundação
-1. `src/lib/gamification.ts`: funções puras
-   - `computePersonalStats(predictions, matches)`
-   - `computeBettorProfile(predictions, matches, odds, publicBets)` → retorna lista de tags com score
-   - `computeBadges(stats, profile)` → conquistadas + bloqueadas com requisito
-   - `computeRoundPodium(matches, predictions, snapshots)`
-   - `computeAlternativeRankings(allPredictions, matches, odds)`
-   - `computeHeadToHead(userA, userB, predictions, matches)`
-   - `computeCrowdMeter(matchId, publicBets, odds)`
-2. `src/hooks/useGamificationData.ts` — fetch único + cache via React Query.
+### 4. UI no MatchCard
+- Buscar broadcasts junto com os jogos em `Games.tsx` e `PublicBets.tsx` (uma query única em `match_broadcasts` por lista de match_ids, mapear por match_id).
+- Passar `broadcasts?: string[]` como prop opcional para `MatchCard`.
+- Renderizar abaixo da linha de data/venue, antes das probabilidades:
+  ```
+  📺 Globo, SporTV, CazéTV
+  ```
+  Estilo: `text-[11px] text-muted-foreground`, truncar com `line-clamp-1`. Só exibir se array não vazio.
 
-### Fase 2 — Perfil turbinado (`src/pages/Profile.tsx`)
-- Card **"Seu estilo de apostador"** (até 3 tags, com descrição e ícone).
-- Grid de **Estatísticas pessoais** (13 cards do enunciado).
-- Seção **Conquistas**: grid de badges; bloqueadas com `opacity-40` + texto de requisito.
-- Botão **"Compartilhar perfil"** → abre modal com card visual (ver Fase 6).
+## Riscos / observações
+- Sofascore não tem API oficial; os endpoints `/api/v1/...` são os usados pelo próprio site. Podem mudar sem aviso e podem rate-limitar — por isso o cache na tabela e busca server-side via edge function.
+- Casar times pelo nome pode falhar para nomes traduzidos; usar normalização semelhante à que já existe em `fetch-match-results` (reaproveitar map de aliases).
+- Primeira execução popula só jogos próximos; jogos muito distantes podem ainda não ter transmissão definida no Sofascore.
 
-### Fase 3 — Estatísticas da Galera (nova rota `/stats`)
-- Adicionada no `BottomNav` (ícone de troféu).
-- Tabs/segmented control com os 10 rankings alternativos.
-- Mobile: cards/listas; Desktop: tabela compacta.
-- Inclui o **Pódio da rodada** no topo (melhor, lanterna, maior subida/queda, melhor/pior palpite, zebra da rodada) — usando última rodada finalizada.
-
-### Fase 4 — Head-to-head
-- Sub-rota `/stats/h2h` (ou tab dentro de `/stats`).
-- 2 dropdowns de usuários (default: eu vs líder).
-- Cards comparativos lado a lado + indicador "venceu a última rodada".
-
-### Fase 5 — Termômetro da galera
-- Componente `<CrowdMeter matchId />` em `MatchCard` (somente após bloqueio do palpite) e em `PublicBets`.
-- Barra tri-color (verde/cinza/dourado) com %; frase contextual baseada no meu palpite vs maioria.
-
-### Fase 6 — Cards compartilháveis
-- `src/components/ShareCard.tsx` — gera um card 1080×1080 com `html-to-image` (já leve, adicionar dep).
-- Templates: posição, placar exato, zebra solitária, subida de posições, badge desbloqueada.
-- Botões: "Copiar texto" + "Compartilhar" (Web Share API com fallback para download da imagem).
-
-## Detalhes técnicos
-
-### Perfil de apostador — heurísticas
-- **Zebreiro**: % de palpites no time com maior odd ≥ 40% (mín. 5 palpites com odd).
-- **Favoritizeiro**: % no time com menor odd ≥ 60%.
-- **Empatador**: % de empates apostados ≥ 30%.
-- **Do contra**: ≥ 5 palpites onde meu resultado (1/X/2) é minoria (<25%).
-- **Vidente**: ≥ 3 placares exatos.
-- **Pé quente / Pé frio**: maior sequência atual de acertos (≥3) ou erros (≥3) em jogos finalizados.
-- **Conservador**: média de gols dos meus palpites ≤ 2.
-- **Showman**: ≥ 30% dos palpites com soma de gols ≥ 4.
-
-### Métricas que dependem de dado novo
-- "Quantos pontos perdeu por não apostar" → calculável: para cada jogo finalizado sem meu palpite, simular "palpite médio" não dá pontos reais; vamos usar **"jogos esquecidos"** + soma de pontos da mediana da galera (rotular como "pontos médios perdidos"). Texto deixa claro que é estimativa.
-- "Maior subida no ranking" → derivada de `ranking_snapshots` (diff entre snapshots consecutivos).
-
-### Sem mudanças no banco
-Não há migrations nesta fase. Badges são derivadas em runtime (sem persistência). Se no futuro quiser histórico de conquistas, criamos tabela `user_badges`.
-
-### Arquivos novos
-```
-src/lib/gamification.ts
-src/hooks/useGamificationData.ts
-src/components/gamification/BettorProfileCard.tsx
-src/components/gamification/StatsGrid.tsx
-src/components/gamification/BadgeGrid.tsx
-src/components/gamification/CrowdMeter.tsx
-src/components/gamification/RoundPodium.tsx
-src/components/gamification/HeadToHead.tsx
-src/components/gamification/ShareCard.tsx
-src/pages/Stats.tsx
-```
-
-### Arquivos editados
-- `src/pages/Profile.tsx` (adiciona seções)
-- `src/components/MatchCard.tsx` (CrowdMeter pós-bloqueio)
-- `src/components/BottomNav.tsx` (novo item Estatísticas)
-- `src/App.tsx` (rota `/stats`)
-- `src/pages/PublicBets.tsx` (CrowdMeter inline)
-
-## Fora de escopo nesta fase
-- Notificações push de conquistas.
-- Persistência de badges desbloqueadas (data de conquista).
-- Liga entre amigos / grupos privados.
-
-Posso começar pela Fase 1+2 (fundação + perfil) e seguir nas próximas mensagens, ou implementar tudo de uma vez. Me diz como prefere.
+## Arquivos
+- **Migration**: criar `match_broadcasts` + GRANTs + RLS.
+- **Nova edge function**: `supabase/functions/fetch-broadcasts/index.ts`.
+- **Editar** `supabase/functions/fetch-match-results/index.ts` apenas se for útil extrair o map de aliases de times para um módulo compartilhado (opcional; senão duplicar inline).
+- **Editar** `src/pages/Admin.tsx`: novo botão.
+- **Editar** `src/pages/Games.tsx` e `src/pages/PublicBets.tsx`: fetch + passar prop.
+- **Editar** `src/components/MatchCard.tsx`: nova prop + render.

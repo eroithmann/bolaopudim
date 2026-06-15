@@ -54,12 +54,13 @@ interface MatchCardProps {
   isLoggedIn: boolean;
   odds?: OddsData | null;
   betDistribution?: BetDistribution | null;
+  broadcasts?: string[] | null;
   onEditChange: (scores: { home: string; away: string }) => void;
   onSave: () => void;
 }
 
 export default function MatchCard({
-  match, prediction, editScore, saving, isLoggedIn, odds, betDistribution, onEditChange, onSave,
+  match, prediction, editScore, saving, isLoggedIn, odds, betDistribution, broadcasts, onEditChange, onSave,
 }: MatchCardProps) {
   const matchDate = new Date(match.match_date);
   const deadlineDate = new Date(matchDate.getTime() - 60 * 60 * 1000); // 1h before
@@ -119,6 +120,15 @@ export default function MatchCard({
             {locked && <Lock className="h-3 w-3" />}
           </div>
         </div>
+
+        {/* Broadcasts (Brasil) */}
+        {broadcasts && broadcasts.length > 0 && (
+          <div className="mb-2 text-[11px] text-muted-foreground flex items-start gap-1.5">
+            <span aria-hidden>📺</span>
+            <span className="line-clamp-1"><span className="font-medium">TV:</span> {broadcasts.join(", ")}</span>
+          </div>
+        )}
+
 
         {/* Teams row */}
         <div className="flex items-center justify-center gap-2 sm:gap-4">

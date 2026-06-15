@@ -74,6 +74,7 @@ export default function Games() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [odds, setOdds] = useState<Record<string, OddsData>>({});
   const [betDistribution, setBetDistribution] = useState<Record<string, { home: number; draw: number; away: number; total: number }>>({});
+  const [broadcasts, setBroadcasts] = useState<Record<string, string[]>>({});
 
   useEffect(() => {
     fetchMatches();
@@ -84,8 +85,22 @@ export default function Games() {
     if (matches.length > 0) {
       fetchOdds();
       fetchBetDistribution();
+      fetchBroadcasts();
     }
   }, [matches]);
+
+  const fetchBroadcasts = async () => {
+    const ids = matches.map((m) => m.id);
+    if (ids.length === 0) return;
+    const { data } = await supabase
+      .from("match_broadcasts")
+      .select("match_id, channels")
+      .in("match_id", ids);
+    if (!data) return;
+    const map: Record<string, string[]> = {};
+    data.forEach((r: any) => { map[r.match_id] = (r.channels || []) as string[]; });
+    setBroadcasts(map);
+  };
 
   const fetchMatches = async () => {
     const [{ data: matchesData, error: matchesError }, { data: teamsData, error: teamsError }] = await Promise.all([
@@ -299,6 +314,7 @@ export default function Games() {
                               isLoggedIn={!!user}
                               odds={odds[match.id] || null}
                               betDistribution={betDistribution[match.id] || null}
+                              broadcasts={broadcasts[match.id] || null}
                               onEditChange={(scores) => setEditScores((s) => ({ ...s, [match.id]: scores }))}
                               onSave={() => savePrediction(match.id)}
                             />

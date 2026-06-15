@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, RefreshCw, Save, Check, Download, TrendingUp } from "lucide-react";
+import { Shield, RefreshCw, Save, Check, Download, TrendingUp, Tv } from "lucide-react";
 import PredictionStatus from "@/components/admin/PredictionStatus";
 
 interface MatchRow {
@@ -36,6 +36,7 @@ export default function Admin() {
   const [syncing, setSyncing] = useState(false);
   const [seedingMatches, setSeedingMatches] = useState(false);
   const [refreshingOdds, setRefreshingOdds] = useState(false);
+  const [refreshingBroadcasts, setRefreshingBroadcasts] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
@@ -144,6 +145,25 @@ export default function Admin() {
     setRefreshingOdds(false);
   };
 
+  const refreshBroadcasts = async () => {
+    setRefreshingBroadcasts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-broadcasts", { method: "POST" });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Erro nas transmissões", description: data.error, variant: "destructive" });
+      } else {
+        const unm = (data?.unmatched as string[] | undefined) ?? [];
+        let desc = `${data?.updated ?? 0} de ${data?.checked ?? 0} jogos.`;
+        if (unm.length) desc += ` Não encontrados: ${unm.slice(0, 3).join(", ")}${unm.length > 3 ? "…" : ""}`;
+        toast({ title: "Transmissões atualizadas!", description: desc });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar transmissões", description: err.message, variant: "destructive" });
+    }
+    setRefreshingBroadcasts(false);
+  };
+
   if (loading) return <Layout><div className="p-8 text-center">Carregando...</div></Layout>;
 
   const pastMatches = matches.filter((m) => new Date(m.match_date) <= new Date());
@@ -168,6 +188,10 @@ export default function Admin() {
             <Button onClick={refreshOdds} disabled={refreshingOdds} variant="outline">
               <TrendingUp className={`h-4 w-4 mr-2 ${refreshingOdds ? "animate-spin" : ""}`} />
               {refreshingOdds ? "Atualizando..." : "Atualizar Odds"}
+            </Button>
+            <Button onClick={refreshBroadcasts} disabled={refreshingBroadcasts} variant="outline">
+              <Tv className={`h-4 w-4 mr-2 ${refreshingBroadcasts ? "animate-spin" : ""}`} />
+              {refreshingBroadcasts ? "Atualizando..." : "Atualizar Transmissões"}
             </Button>
           </div>
         </div>

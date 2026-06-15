@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      match_broadcasts: {
+        Row: {
+          channels: string[]
+          created_at: string
+          fetched_at: string
+          id: string
+          match_id: string
+          sofascore_event_id: number | null
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          channels?: string[]
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          match_id: string
+          sofascore_event_id?: number | null
+          source?: string
+          updated_at?: string
+        }
+        Update: {
+          channels?: string[]
+          created_at?: string
+          fetched_at?: string
+          id?: string
+          match_id?: string
+          sofascore_event_id?: number | null
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "match_broadcasts_match_id_fkey"
+            columns: ["match_id"]
+            isOneToOne: true
+            referencedRelation: "matches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matches: {
         Row: {
           api_fixture_id: number | null
