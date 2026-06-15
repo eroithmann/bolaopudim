@@ -88,28 +88,32 @@ export default function Ranking() {
     });
     setRanking(sorted);
 
-    // Posições anteriores: usar último snapshot do penúltimo dia com jogos finalizados
+    // Posições anteriores: snapshot imediatamente antes do último jogo finalizado
     const { data: snapshots } = await supabase
       .from("ranking_snapshots")
-      .select("user_id, match_date, total_points")
+      .select("user_id, match_id, match_date, total_points")
       .order("match_date", { ascending: true });
 
     if (snapshots && snapshots.length > 0) {
-      // datas distintas (apenas a parte YYYY-MM-DD)
-      const dayKey = (d: string) => d.slice(0, 10);
-      const uniqueDays = Array.from(new Set(snapshots.map((s: any) => dayKey(s.match_date)))).sort();
-      if (uniqueDays.length >= 2) {
-        const prevDay = uniqueDays[uniqueDays.length - 2];
-        // último snapshot de cada usuário nesse dia
-        const lastByUser = new Map<string, number>();
+      // pegar lista ordenada de match_ids únicos (na ordem em que apareceram)
+      const seen = new Set<string>();
+      const orderedMatches: string[] = [];
+      snapshots.forEach((s: any) => {
+        if (!seen.has(s.match_id)) {
+          seen.add(s.match_id);
+          orderedMatches.push(s.match_id);
+        }
+      });
+      if (orderedMatches.length >= 2) {
+        const prevMatchId = orderedMatches[orderedMatches.length - 2];
+        const prevByUser = new Map<string, number>();
         snapshots.forEach((s: any) => {
-          if (dayKey(s.match_date) === prevDay) {
-            lastByUser.set(s.user_id, s.total_points);
+          if (s.match_id === prevMatchId) {
+            prevByUser.set(s.user_id, s.total_points);
           }
         });
-        // ordenar com mesma lógica do ranking atual para gerar posições com empate
         const profileName = new Map(sorted.map((e) => [e.user_id, e.name]));
-        const prevSorted = Array.from(lastByUser.entries())
+        const prevSorted = Array.from(prevByUser.entries())
           .map(([user_id, total_points]) => ({ user_id, total_points, name: profileName.get(user_id) || "" }))
           .sort((a, b) => {
             if (b.total_points !== a.total_points) return b.total_points - a.total_points;
