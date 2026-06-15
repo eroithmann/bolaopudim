@@ -4,7 +4,7 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Trophy, Medal, Crown } from "lucide-react";
+import { Trophy, Medal, Crown, ArrowUp, ArrowDown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import RankingEvolution from "@/components/RankingEvolution";
 
@@ -20,6 +20,7 @@ interface RankingEntry {
 export default function Ranking() {
   const { user } = useAuth();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
+  const [previousPositions, setPreviousPositions] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -86,6 +87,47 @@ export default function Ranking() {
       return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
     });
     setRanking(sorted);
+
+    // Posições anteriores: usar último snapshot do penúltimo dia com jogos finalizados
+    const { data: snapshots } = await supabase
+      .from("ranking_snapshots")
+      .select("user_id, match_date, total_points")
+      .order("match_date", { ascending: true });
+
+    if (snapshots && snapshots.length > 0) {
+      // datas distintas (apenas a parte YYYY-MM-DD)
+      const dayKey = (d: string) => d.slice(0, 10);
+      const uniqueDays = Array.from(new Set(snapshots.map((s: any) => dayKey(s.match_date)))).sort();
+      if (uniqueDays.length >= 2) {
+        const prevDay = uniqueDays[uniqueDays.length - 2];
+        // último snapshot de cada usuário nesse dia
+        const lastByUser = new Map<string, number>();
+        snapshots.forEach((s: any) => {
+          if (dayKey(s.match_date) === prevDay) {
+            lastByUser.set(s.user_id, s.total_points);
+          }
+        });
+        // ordenar com mesma lógica do ranking atual para gerar posições com empate
+        const profileName = new Map(sorted.map((e) => [e.user_id, e.name]));
+        const prevSorted = Array.from(lastByUser.entries())
+          .map(([user_id, total_points]) => ({ user_id, total_points, name: profileName.get(user_id) || "" }))
+          .sort((a, b) => {
+            if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+            return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
+          });
+        const prevPos: Record<string, number> = {};
+        prevSorted.forEach((e, i) => {
+          let pos = i + 1;
+          for (let j = i - 1; j >= 0; j--) {
+            if (prevSorted[j].total_points === e.total_points) pos = j + 1;
+            else break;
+          }
+          prevPos[e.user_id] = pos;
+        });
+        setPreviousPositions(prevPos);
+      }
+    }
+
     setLoading(false);
   };
 
@@ -104,6 +146,18 @@ export default function Ranking() {
     if (pos === 1) return "text-gray-400";
     if (pos === 2) return "text-amber-700";
     return "";
+  };
+
+  const PositionDelta = ({ userId, currentPos }: { userId: string; currentPos: number }) => {
+    const prev = previousPositions[userId];
+    if (prev === undefined) return null;
+    if (currentPos < prev) {
+      return <ArrowUp className="h-3.5 w-3.5 text-emerald-600 shrink-0" aria-label={`subiu ${prev - currentPos}`} />;
+    }
+    if (currentPos > prev) {
+      return <ArrowDown className="h-3.5 w-3.5 text-red-600 shrink-0" aria-label={`caiu ${currentPos - prev}`} />;
+    }
+    return null;
   };
 
   const top3 = ranking.slice(0, 3);
@@ -178,6 +232,7 @@ export default function Ranking() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="font-medium text-sm truncate">{entry.name || "Anônimo"}</span>
+                          <PositionDelta userId={entry.user_id} currentPos={pos} />
                           {isMe && <Badge className="bg-primary/20 text-primary text-[9px] px-1.5 py-0">você</Badge>}
                         </div>
                         <div className="text-[10px] text-muted-foreground">
@@ -219,6 +274,7 @@ export default function Ranking() {
                           <span className={`flex items-center gap-1 ${getMedalColor(medalIdx)}`}>
                             {medalIdx < 3 && <Medal className="h-4 w-4" />}
                             {pos}º
+                            <PositionDelta userId={entry.user_id} currentPos={pos} />
                           </span>
                         </TableCell>
                         <TableCell className="font-medium">
