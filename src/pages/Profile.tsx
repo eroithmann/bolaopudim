@@ -118,7 +118,7 @@ export default function Profile() {
         {/* Dados */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-xl">DADOS</CardTitle>
+            <CardTitle className="text-base sm:text-xl">Seus dados</CardTitle>
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-3 items-end">
             <div>
