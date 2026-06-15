@@ -36,6 +36,7 @@ export default function Admin() {
   const [syncing, setSyncing] = useState(false);
   const [seedingMatches, setSeedingMatches] = useState(false);
   const [refreshingOdds, setRefreshingOdds] = useState(false);
+  const [refreshingBroadcasts, setRefreshingBroadcasts] = useState(false);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
