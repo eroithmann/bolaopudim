@@ -175,7 +175,7 @@ export default function Ranking() {
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
         <h1 className="text-2xl sm:text-4xl font-bold mb-6 flex items-center gap-2 sm:gap-3">
           <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-secondary" />
-          RANKING GERAL
+          Ranking geral
         </h1>
 
         {loading ? (
@@ -303,11 +303,11 @@ export default function Ranking() {
 
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle className="text-xl">SISTEMA DE PONTUAÇÃO</CardTitle>
+            <CardTitle className="text-xl">Sistema de pontuação</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">PONTOS BASE</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">Pontos base</h3>
               <div className="grid sm:grid-cols-5 gap-4 text-center">
                 <div className="p-4 rounded-lg bg-primary/10">
                   <span className="block text-3xl font-bold text-primary">5</span>
@@ -332,7 +332,7 @@ export default function Ranking() {
               </div>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-muted-foreground mb-3">MULTIPLICADOR POR FASE</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground mb-3">Multiplicador por fase</h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-center">
                 <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x1</span><span className="text-xs text-muted-foreground">1ª fase</span></div>
                 <div className="p-3 rounded-lg bg-muted"><span className="block text-xl font-bold">x2</span><span className="text-xs text-muted-foreground">2ª fase</span></div>

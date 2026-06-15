@@ -112,13 +112,13 @@ export default function Profile() {
       <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8 space-y-4">
         <h1 className="text-2xl sm:text-4xl font-bold flex items-center gap-2 sm:gap-3">
           <User className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />
-          MEU PERFIL
+          Meu perfil
         </h1>
 
         {/* Dados */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-xl">DADOS</CardTitle>
+            <CardTitle className="text-base sm:text-xl">Seus dados</CardTitle>
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 gap-3 items-end">
             <div>

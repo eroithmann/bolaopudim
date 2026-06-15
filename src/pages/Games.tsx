@@ -259,7 +259,7 @@ export default function Games() {
   return (
     <Layout>
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <h1 className="text-4xl font-bold mb-6">JOGOS DA COPA</h1>
+        <h1 className="text-3xl sm:text-4xl font-black mb-6 tracking-tight">Jogos da Copa ⚽</h1>
 
         {matches.length === 0 ? (
           <Card>
