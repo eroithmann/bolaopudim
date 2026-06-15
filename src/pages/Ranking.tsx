@@ -274,6 +274,7 @@ export default function Ranking() {
                           <span className={`flex items-center gap-1 ${getMedalColor(medalIdx)}`}>
                             {medalIdx < 3 && <Medal className="h-4 w-4" />}
                             {pos}º
+                            <PositionDelta userId={entry.user_id} currentPos={pos} />
                           </span>
                         </TableCell>
                         <TableCell className="font-medium">
