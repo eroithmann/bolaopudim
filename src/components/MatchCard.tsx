@@ -54,12 +54,13 @@ interface MatchCardProps {
   isLoggedIn: boolean;
   odds?: OddsData | null;
   betDistribution?: BetDistribution | null;
+  broadcasts?: string[] | null;
   onEditChange: (scores: { home: string; away: string }) => void;
   onSave: () => void;
 }
 
 export default function MatchCard({
-  match, prediction, editScore, saving, isLoggedIn, odds, betDistribution, onEditChange, onSave,
+  match, prediction, editScore, saving, isLoggedIn, odds, betDistribution, broadcasts, onEditChange, onSave,
 }: MatchCardProps) {
   const matchDate = new Date(match.match_date);
   const deadlineDate = new Date(matchDate.getTime() - 60 * 60 * 1000); // 1h before
