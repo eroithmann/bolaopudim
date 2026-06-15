@@ -175,7 +175,7 @@ export default function Ranking() {
       <div className="max-w-4xl mx-auto px-4 py-6 sm:py-8">
         <h1 className="text-2xl sm:text-4xl font-bold mb-6 flex items-center gap-2 sm:gap-3">
           <Trophy className="h-6 w-6 sm:h-8 sm:w-8 text-secondary" />
-          RANKING GERAL
+          Ranking geral
         </h1>
 
         {loading ? (
