@@ -145,6 +145,25 @@ export default function Admin() {
     setRefreshingOdds(false);
   };
 
+  const refreshBroadcasts = async () => {
+    setRefreshingBroadcasts(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("fetch-broadcasts", { method: "POST" });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Erro nas transmissões", description: data.error, variant: "destructive" });
+      } else {
+        const unm = (data?.unmatched as string[] | undefined) ?? [];
+        let desc = `${data?.updated ?? 0} de ${data?.checked ?? 0} jogos.`;
+        if (unm.length) desc += ` Não encontrados: ${unm.slice(0, 3).join(", ")}${unm.length > 3 ? "…" : ""}`;
+        toast({ title: "Transmissões atualizadas!", description: desc });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar transmissões", description: err.message, variant: "destructive" });
+    }
+    setRefreshingBroadcasts(false);
+  };
+
   if (loading) return <Layout><div className="p-8 text-center">Carregando...</div></Layout>;
 
   const pastMatches = matches.filter((m) => new Date(m.match_date) <= new Date());
