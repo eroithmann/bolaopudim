@@ -90,13 +90,13 @@ export default function MatchCard({
 
   const getPointsBadge = (points: number | null) => {
     if (points === null) return null;
-    if (points === 0) return <Badge variant="destructive">0 pts</Badge>;
-    const label = `${points} pt${points === 1 ? "" : "s"}`;
-    return <Badge className="bg-primary text-primary-foreground">{label}</Badge>;
+    if (points === 0) return <Badge variant="destructive" className="text-xs">0 pts</Badge>;
+    const label = `+${points} pt${points === 1 ? "" : "s"}`;
+    return <Badge className="bg-primary text-primary-foreground text-sm font-bold px-2">{label}</Badge>;
   };
 
   return (
-    <Card className={match.status === "finished" ? "border-primary/30" : ""}>
+    <Card className={`transition-shadow hover:shadow-md ${match.status === "finished" ? "border-primary/30 bg-primary/[0.02]" : ""}`}>
       <CardContent className="py-3 px-3 sm:py-4 sm:px-6">
         {/* Header: date + venue + group */}
         <div className="flex justify-between items-start mb-3 text-[11px] sm:text-xs text-muted-foreground gap-2">
@@ -145,11 +145,11 @@ export default function MatchCard({
           {/* Score / VS */}
           <div className="shrink-0 min-w-[50px] sm:min-w-[60px] text-center">
             {match.status === "finished" ? (
-              <span className="font-bold text-lg sm:text-xl tabular-nums">
+              <span className="font-black text-2xl sm:text-3xl tabular-nums tracking-tight text-primary">
                 {match.home_score} – {match.away_score}
               </span>
             ) : (
-              <span className="text-[10px] sm:text-xs text-muted-foreground font-medium uppercase tracking-wider">vs</span>
+              <span className="text-sm font-black text-muted-foreground/40 tracking-widest">VS</span>
             )}
           </div>
 
