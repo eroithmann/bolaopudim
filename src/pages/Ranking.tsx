@@ -147,7 +147,7 @@ export default function Ranking() {
 
   const getMedalColor = (pos: number) => {
     if (pos === 0) return "text-yellow-500";
-    if (pos === 1) return "text-gray-400";
+    if (pos === 1) return "text-slate-400";
     if (pos === 2) return "text-amber-700";
     return "";
   };
@@ -168,7 +168,11 @@ export default function Ranking() {
   // Display order for podium: 2nd, 1st, 3rd
   const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
   const podiumHeights = ["h-20", "h-28", "h-16"];
-  const podiumColors = ["bg-gray-300 dark:bg-gray-600", "bg-yellow-400", "bg-amber-700"];
+  const podiumColors = [
+    "bg-slate-300 dark:bg-slate-600",
+    "bg-gradient-to-b from-yellow-300 to-yellow-500",
+    "bg-gradient-to-b from-amber-500 to-amber-700",
+  ];
 
   return (
     <Layout>
@@ -206,7 +210,10 @@ export default function Ranking() {
                               {entry.total_points}
                             </div>
                           </div>
-                          <div className={`w-full rounded-t-lg flex items-center justify-center text-white font-bold text-2xl ${podiumHeights[heightIdx]} ${podiumColors[heightIdx]}`}>
+                          <div className={`relative w-full rounded-t-lg flex items-center justify-center text-white font-bold text-2xl ${podiumHeights[heightIdx]} ${podiumColors[heightIdx]}`}>
+                            {realPos === 0 && (
+                              <div className="absolute -inset-1 rounded-xl bg-yellow-300/20 -z-10" />
+                            )}
                             {realPos + 1}º
                           </div>
                         </div>
