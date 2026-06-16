@@ -210,7 +210,10 @@ export default function Ranking() {
                               {entry.total_points}
                             </div>
                           </div>
-                          <div className={`w-full rounded-t-lg flex items-center justify-center text-white font-bold text-2xl ${podiumHeights[heightIdx]} ${podiumColors[heightIdx]}`}>
+                          <div className={`relative w-full rounded-t-lg flex items-center justify-center text-white font-bold text-2xl ${podiumHeights[heightIdx]} ${podiumColors[heightIdx]}`}>
+                            {realPos === 0 && (
+                              <div className="absolute -inset-1 rounded-xl bg-yellow-300/20 -z-10" />
+                            )}
                             {realPos + 1}º
                           </div>
                         </div>
