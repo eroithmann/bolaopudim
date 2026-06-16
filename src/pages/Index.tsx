@@ -146,7 +146,7 @@ export default function Index() {
           >
             Aposte. Vibre.{" "}
             <span className="italic bg-gradient-to-r from-secondary via-accent to-secondary bg-clip-text text-transparent">
-              Vença.
+              Ganhe até R$2k!
             </span>
           </h1>
           <p className="text-sm md:text-2xl opacity-90 mb-6 md:mb-10 max-w-2xl mx-auto leading-relaxed">
