@@ -254,7 +254,7 @@ export default function Ranking() {
                           {isMe && <Badge className="bg-primary/20 text-primary text-[9px] px-1.5 py-0">você</Badge>}
                         </div>
                         <div className="text-[10px] text-muted-foreground">
-                          {entry.exact_scores} exatos · {entry.goal_diff} saldo · {entry.results_only} result.
+                          {entry.exact_scores} exatos · {entry.goal_diff} saldo · {entry.one_side_goals} gols · {entry.results_only} result.
                         </div>
                       </div>
                       <div className="text-right shrink-0">
