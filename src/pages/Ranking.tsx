@@ -14,6 +14,7 @@ interface RankingEntry {
   total_points: number;
   exact_scores: number;
   goal_diff: number;
+  one_side_goals: number;
   results_only: number;
 }
 
