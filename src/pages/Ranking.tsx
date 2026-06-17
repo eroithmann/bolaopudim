@@ -278,6 +278,7 @@ export default function Ranking() {
                       <TableHead className="text-center">Pontos</TableHead>
                       <TableHead className="text-center">Exatos</TableHead>
                       <TableHead className="text-center">Saldo</TableHead>
+                      <TableHead className="text-center">Gols</TableHead>
                       <TableHead className="text-center">Resultados</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -302,6 +303,7 @@ export default function Ranking() {
                         <TableCell className="text-center font-bold text-primary text-lg">{entry.total_points}</TableCell>
                         <TableCell className="text-center">{entry.exact_scores}</TableCell>
                         <TableCell className="text-center">{entry.goal_diff}</TableCell>
+                        <TableCell className="text-center">{entry.one_side_goals}</TableCell>
                         <TableCell className="text-center">{entry.results_only}</TableCell>
                       </TableRow>
                       );
