@@ -14,6 +14,7 @@ interface RankingEntry {
   total_points: number;
   exact_scores: number;
   goal_diff: number;
+  one_side_goals: number;
   results_only: number;
 }
 
@@ -60,6 +61,7 @@ export default function Ranking() {
           total_points: 0,
           exact_scores: 0,
           goal_diff: 0,
+          one_side_goals: 0,
           results_only: 0,
         };
       });
@@ -76,8 +78,13 @@ export default function Ranking() {
         const pDiff = p.home_score - p.away_score;
         const rDiff = m.home_score - m.away_score;
         const sameResult = Math.sign(pDiff) === Math.sign(rDiff);
+        const oneSideGoal = !exact && sameResult && (
+          (p.home_score === m.home_score && p.away_score !== m.away_score) ||
+          (p.away_score === m.away_score && p.home_score !== m.home_score)
+        );
         if (exact) grouped[p.user_id].exact_scores++;
         else if (sameResult && pDiff === rDiff && pDiff !== 0) grouped[p.user_id].goal_diff++;
+        else if (oneSideGoal) grouped[p.user_id].one_side_goals++;
         else if (sameResult) grouped[p.user_id].results_only++;
       });
     }
@@ -247,7 +254,7 @@ export default function Ranking() {
                           {isMe && <Badge className="bg-primary/20 text-primary text-[9px] px-1.5 py-0">você</Badge>}
                         </div>
                         <div className="text-[10px] text-muted-foreground">
-                          {entry.exact_scores} exatos · {entry.goal_diff} saldo · {entry.results_only} result.
+                          {entry.exact_scores} exatos · {entry.goal_diff} saldo · {entry.one_side_goals} gols · {entry.results_only} result.
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -271,6 +278,7 @@ export default function Ranking() {
                       <TableHead className="text-center">Pontos</TableHead>
                       <TableHead className="text-center">Exatos</TableHead>
                       <TableHead className="text-center">Saldo</TableHead>
+                      <TableHead className="text-center">Gols</TableHead>
                       <TableHead className="text-center">Resultados</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -295,6 +303,7 @@ export default function Ranking() {
                         <TableCell className="text-center font-bold text-primary text-lg">{entry.total_points}</TableCell>
                         <TableCell className="text-center">{entry.exact_scores}</TableCell>
                         <TableCell className="text-center">{entry.goal_diff}</TableCell>
+                        <TableCell className="text-center">{entry.one_side_goals}</TableCell>
                         <TableCell className="text-center">{entry.results_only}</TableCell>
                       </TableRow>
                       );
