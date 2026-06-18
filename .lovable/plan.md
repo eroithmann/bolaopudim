@@ -1,46 +1,53 @@
-# Bolão Pudim Newsletter — e-mail diário 6h30
+## Objetivo
 
-Resumo diário automático com os destaques do dia anterior, enviado para todos os usuários cadastrados. Primeiro envio (resumo de 15/06) sai imediatamente após você aprovar; depois roda automaticamente todo dia às 6h30 (horário de Brasília).
+Adicionar dois indicadores de progresso no topo da página **Stats** ("Estatísticas da galera"):
 
-## Pré-requisitos (uma vez só)
+1. **Jogos disputados** — ex: `10 de 104 jogos` + barra de progresso
+2. **Pontos em disputa já distribuídos** — ex: `200 de 810 pts` + barra de progresso
 
-1. **Configurar domínio de e-mail** no Lovable Cloud — você precisa ter um domínio (ex.: `bolaopudim.com.br` ou similar) e adicionar registros DNS via subdomínio delegado (ex.: `notify.bolaopudim.com.br`). Sem isso, e-mails não saem.
-2. Provisionar a infraestrutura de e-mail (filas, tabelas de log, supressão, cron de processamento) — feito automaticamente após o domínio estar configurado.
+Ambos usando o componente `Progress` já existente do shadcn.
 
-Se você ainda não tem domínio, abrimos o assistente de setup antes de qualquer código.
+## Onde
 
-## Conteúdo do e-mail
+Novo componente `src/components/gamification/TournamentProgress.tsx`, renderizado no topo de `src/pages/Stats.tsx` (acima do `RoundPodium`).
 
-Assunto: **Bolão Pudim Newsletter — [data por extenso]**
+## Cálculo
 
-Blocos do corpo:
+Lê `data.matches` (já disponível via `useGamificationData`).
 
-1. **Saudação personalizada** ("E aí, {nome}!") + frase curta sobre o dia anterior
-2. **Resultados dos jogos de ontem** — placar, fase, e quantos pontos cada jogo distribuiu no bolão
-3. **Sua performance** — pontos feitos ontem, acertos exatos / parciais / zeros, palpites perdidos (sem palpitar)
-4. **Movimentação no ranking** — posição atual, delta (subiu/desceu/manteve) vs. dia anterior, total de pontos
-5. **Destaques da galera** — top 3 do dia (quem mais pontuou ontem), maior zebra acertada do dia (palpite minoritário que deu certo), eventual "ninguém acertou ninguém" se for o caso
-6. **Próximos jogos** — partidas das próximas 24h com horário e CTA "Fazer meus palpites"
-7. Rodapé com link de unsubscribe (gerado automaticamente pela infraestrutura)
+**Jogos:**
+- `total = matches.length` (deve ser 104 na Copa 2026: 72 grupos + 16 + 8 + 4 + 2 + 1 + 1)
+- `played = matches.filter(m => m.status === 'finished').length`
 
-**Dias sem jogos da Copa**: versão enxuta — pula blocos 2/3/5, mantém saudação, sua posição atual no ranking e prévia dos próximos jogos ("amanhã tem X vs Y, não esquece de palpitar").
+**Pontos em disputa** — máximo possível por jogo é `5 × phase_multiplier(phase)` (mesma função do banco). Multiplicadores:
 
-## Como vai funcionar (técnico)
+| Fase | Mult | Jogos | Máx/jogo | Total fase |
+|------|------|-------|----------|------------|
+| groups | 1 | 72 | 5 | 360 |
+| round_of_32 | 2 | 16 | 10 | 160 |
+| round_of_16 | 3 | 8 | 15 | 120 |
+| quarterfinals | 4 | 4 | 20 | 80 |
+| semifinals | 5 | 2 | 25 | 50 |
+| third_place | 2 | 1 | 10 | 10 |
+| final | 6 | 1 | 30 | 30 |
+| **Total** | | **104** | | **810** |
 
-- **Edge Function `send-daily-newsletter`**: consulta jogos finalizados do dia anterior (00:00–23:59 BRT), monta os dados por usuário (performance, ranking via `ranking_snapshots`, destaques globais) e enfileira um e-mail por usuário com `templateData` específico.
-- **Template React Email** `daily-newsletter.tsx` em `_shared/transactional-email-templates/`, com a paleta do projeto (verde #145 + dourado, headings Bebas Neue cai como Arial no e-mail, Inter no corpo). Fundo `#ffffff` (regra do React Email).
-- **pg_cron** dispara a function todo dia às **09:30 UTC** (= 06:30 BRT). Job nomeado `daily-newsletter-630-brt`.
-- **Idempotência**: chave `newsletter-{user_id}-{YYYY-MM-DD}` impede duplicidade se o cron rodar duas vezes.
-- **Envio imediato do resumo de 15/06**: rodamos a function uma vez com parâmetro `?date=2026-06-15` logo após você aprovar e o domínio estar verificado.
-- **Lista de destinatários**: query em `profiles` (todos os usuários). Quem estiver em `suppressed_emails` (bounce/unsubscribe) é pulado automaticamente pelo `send-transactional-email`.
-- **Volume estimado**: ~N usuários × 1 e-mail/dia, dentro do throughput padrão da fila (120/min).
+- `totalPoints = soma de 5 * mult(phase) sobre todos matches`
+- `playedPoints = soma de 5 * mult(phase) sobre matches com status='finished'`
 
-## Limitações / pontos de atenção
+(O cálculo é dinâmico em cima de `matches`, então se mudar a tabela continua certo.)
 
-- Precisa do domínio configurado antes de qualquer teste real. DNS pode levar até 72h pra propagar.
-- Não tem opt-out por enquanto (você escolheu "todos os usuários"). O link de unsubscribe no rodapé é obrigatório pela infra e cuida disso individualmente quando alguém clicar.
-- "Destaques da galera" usa dados agregados do dia, sem expor palpites individuais de outros usuários além dos top-pontuadores (que já aparecem no ranking público).
+## UI
 
-## Próximo passo
+Card único com duas linhas, cada uma com:
+- label à esquerda ("Jogos disputados" / "Pontos em disputa")
+- contagem à direita (`10 / 104` · `10%`)
+- `<Progress value={pct} />` abaixo
 
-Se aprovar o plano, eu começo abrindo o assistente de configuração de domínio de e-mail. Me confirma qual domínio você quer usar (ou se quer comprar um) antes da implementação.
+Visual coerente com `StatsGrid` (mesmo tom de card, tipografia tabular-nums).
+
+## Não muda
+
+- Nenhuma lógica de palpites/pontos/ranking
+- Nenhum schema, função ou edge function
+- `useGamificationData` permanece igual (já traz `matches` com `phase` e `status`)

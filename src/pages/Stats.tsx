@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import RoundPodium from "@/components/gamification/RoundPodium";
 import AlternativeRankings from "@/components/gamification/AlternativeRankings";
 import HeadToHead from "@/components/gamification/HeadToHead";
+import TournamentProgress from "@/components/gamification/TournamentProgress";
 import { aggregateUsers, computeRoundPodium } from "@/lib/gamification";
 import { BarChart3 } from "lucide-react";
 
@@ -35,6 +36,7 @@ export default function Stats() {
           <Card><CardContent className="py-12 text-center text-muted-foreground">Carregando...</CardContent></Card>
         ) : (
           <>
+            <TournamentProgress matches={data.matches} />
             {podium && <RoundPodium podium={podium} />}
             <AlternativeRankings users={aggs} currentUserId={user?.id} />
             <HeadToHead
