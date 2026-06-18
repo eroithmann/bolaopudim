@@ -19,20 +19,35 @@ interface Props {
   matches: MatchLite[];
 }
 
+// Estrutura fixa da Copa 2026: 12 grupos x 4 = 48 times, 72 jogos de grupo
+// + 16 (16-avos) + 8 (oitavas) + 4 (quartas) + 2 (semis) + 1 (3º lugar) + 1 (final) = 104 jogos
+const PHASE_GAMES: Record<string, number> = {
+  groups: 72,
+  round_of_32: 16,
+  round_of_16: 8,
+  quarterfinals: 4,
+  semifinals: 2,
+  third_place: 1,
+  final: 1,
+};
+const TOTAL_GAMES = 104;
+// Pontos máximos por fase = jogos × 5 × multiplicador
+const TOTAL_POINTS = Object.entries(PHASE_GAMES).reduce(
+  (acc, [phase, n]) => acc + n * 5 * (PHASE_MULTIPLIER[phase] ?? 1),
+  0,
+); // 360 + 160 + 120 + 80 + 50 + 10 + 30 = 810
+
 export default function TournamentProgress({ matches }: Props) {
-  const totalGames = matches.length;
   const playedGames = matches.filter((m) => m.status === "finished").length;
 
-  let totalPoints = 0;
   let playedPoints = 0;
   for (const m of matches) {
-    const max = maxPointsForMatch(m.phase);
-    totalPoints += max;
-    if (m.status === "finished") playedPoints += max;
+    if (m.status === "finished") playedPoints += maxPointsForMatch(m.phase);
   }
 
-  const gamesPct = totalGames > 0 ? (playedGames / totalGames) * 100 : 0;
-  const pointsPct = totalPoints > 0 ? (playedPoints / totalPoints) * 100 : 0;
+  const gamesPct = (playedGames / TOTAL_GAMES) * 100;
+  const pointsPct = (playedPoints / TOTAL_POINTS) * 100;
+
 
   return (
     <Card>
@@ -46,14 +61,14 @@ export default function TournamentProgress({ matches }: Props) {
         <Row
           label="Jogos disputados"
           current={playedGames}
-          total={totalGames}
+          total={TOTAL_GAMES}
           unit="jogos"
           pct={gamesPct}
         />
         <Row
           label="Pontos em disputa"
           current={playedPoints}
-          total={totalPoints}
+          total={TOTAL_POINTS}
           unit="pts"
           pct={pointsPct}
         />
