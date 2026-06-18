@@ -61,14 +61,14 @@ export default function TournamentProgress({ matches }: Props) {
         <Row
           label="Jogos disputados"
           current={playedGames}
-          total={totalGames}
+          total={TOTAL_GAMES}
           unit="jogos"
           pct={gamesPct}
         />
         <Row
           label="Pontos em disputa"
           current={playedPoints}
-          total={totalPoints}
+          total={TOTAL_POINTS}
           unit="pts"
           pct={pointsPct}
         />
