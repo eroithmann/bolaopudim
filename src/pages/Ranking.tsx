@@ -280,6 +280,7 @@ export default function Ranking() {
                       <TableHead className="text-center">Saldo</TableHead>
                       <TableHead className="text-center">Gols</TableHead>
                       <TableHead className="text-center">Resultados</TableHead>
+                      <TableHead className="text-center">Total acertos</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -287,6 +288,7 @@ export default function Ranking() {
                       const pos = positions[i];
                       const medalIdx = pos - 1;
                       const isMe = entry.user_id === user?.id;
+                      const totalHits = entry.exact_scores + entry.goal_diff + entry.one_side_goals + entry.results_only;
                       return (
                       <TableRow key={entry.user_id} className={isMe ? "bg-primary/5" : ""}>
                         <TableCell className="font-bold">
