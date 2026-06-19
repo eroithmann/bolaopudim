@@ -307,6 +307,7 @@ export default function Ranking() {
                         <TableCell className="text-center">{entry.goal_diff}</TableCell>
                         <TableCell className="text-center">{entry.one_side_goals}</TableCell>
                         <TableCell className="text-center">{entry.results_only}</TableCell>
+                        <TableCell className="text-center font-bold">{totalHits}</TableCell>
                       </TableRow>
                       );
                     })}
