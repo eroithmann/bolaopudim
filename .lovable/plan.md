@@ -1,85 +1,86 @@
-## Objetivo
+## Post-mortem
 
-Newsletter diária para todos os usuários cadastrados:
-- **Hoje** (envio inaugural, manual pelo admin): resumo dos jogos de **ontem (19/06)**.
-- **A partir de amanhã**: todo dia às **07:00 BRT** automaticamente, com resumo do dia anterior.
+### 1) Apostas não contabilizadas no NED x SWE
 
-Conteúdo de cada e-mail:
-- Jogos finalizados no dia (placar).
-- Top 3 do dia (quem pontuou mais naqueles jogos).
-- Top 3 do ranking geral acumulado.
-- Link para o app.
+**Causa raiz**: o PostgREST (API do Supabase) limita cada request a 1000 linhas por padrão. A tabela `predictions` tem 1012 linhas. Ao carregar o ranking, a página `/ranking` e a `/` fazem `select` em todas as predictions de uma vez — as 12 últimas (justamente as do jogo mais novo, NED x SWE) eram cortadas silenciosamente. O ranking somava só o que chegava. Em `PublicBets` o efeito era o "13/21 apostaram" e várias células "—".
 
-## Integração Brevo
+Evidências:
+- `select count(*) from predictions` → 1012
+- `select count(*) from predictions where points is not null` → 1012
+- O jogo tinha 19 apostas no banco, mas só 13 chegavam no front
+- A correção via paginação (Ranking/Home/Evolution/PublicBets) restaurou os pontos
 
-- Chamada direta à API transacional Brevo (`POST https://api.brevo.com/v3/smtp/email`) a partir de edge function.
-- Sem MCP, sem connector gateway, sem SDK.
-- Remetente: `TI do Bolão Pudim <eroithmann@icloud.com>`.
-- Key lida via `Deno.env.get("BREVO_API_KEY")` — nunca no frontend, no código-fonte, no repo ou em logs.
-- Logs registram apenas status HTTP, contagens (`sent`/`failed`) e amostra de erros sem expor a key.
+**Status**: já corrigido com paginação manual em todos os consumers. Sobra um risco residual: qualquer `select` futuro que não pagine vai re-introduzir o bug quando a tabela crescer.
 
-## Secrets
+### 2) Xumi alterou de 5x0 → 4x0 e não pegou
 
-- **`BREVO_API_KEY`** — você cola na interface segura quando eu abrir o prompt.
-- **`NEWSLETTER_CRON_SECRET`** — senha aleatória que eu gero e guardo como secret. Serve só para o cron das 7h provar que é ele mesmo chamando a função (header `X-Cron-Secret`). Você só clica "confirmar" no prompt.
+**Causa raiz (com base no audit)**:
+- `prediction_audit` mostra **apenas** o INSERT original (16/06, 5x0) e o UPDATE que eu fiz manualmente (20/06 19:18 UTC). **Nenhum** UPDATE feito pelo próprio Xumi entre essas datas.
+- O jogo GER x CIV começa às **20:00 UTC (17h BRT)**. O lock do app é 1h antes → **19:00 UTC (16h BRT)**.
+- Hoje, na rotina de atualização da página, o Xumi provavelmente trocou o valor no input bem em cima do horário de bloqueio. O lock é **só no frontend** (`now >= deadline`): quando o `now` passa do limite enquanto a tela está aberta, o botão "Salvar" some — mas o input já tem o número novo. Resultado: ele vê 4x0 na tela, acha que salvou, e o banco nunca recebeu.
+- Não há nenhuma proteção no backend: a policy de UPDATE é só `auth.uid() = user_id`, sem checar o horário. Se um cliente burlar o frontend, ainda passa.
 
-## Arquitetura
+### Correções para garantir que não aconteça de novo
 
-### 1. Edge function `send-daily-newsletter`
-`supabase/functions/send-daily-newsletter/index.ts`
+#### A) Backend trava o lock (defesa real)
 
-Aceita `POST` com body opcional:
-- `date?: "YYYY-MM-DD"` — sem isso, usa "ontem" em BRT.
-- `testEmail?: string` — se presente, envia só para esse endereço.
-- `dryRun?: boolean` — retorna o HTML montado sem enviar nada.
+Criar um trigger BEFORE INSERT/UPDATE em `public.predictions` que rejeita se `match_date - now() < 1h` (e o usuário não for admin). Isso:
+- impede salvar em cima do limite, retornando erro claro
+- elimina qualquer dúvida do tipo "achei que tinha salvado"
+- protege contra clientes que pulam a checagem do front
 
-Lógica:
-- Usa service role para ler `matches`, `predictions`, `profiles` e (para destinatários reais) `auth.users` via admin API.
-- Monta HTML inline (sem React Email — fica leve, no padrão das outras functions do projeto).
-- Envia 1 request por destinatário ao Brevo (preserva privacidade — ninguém vê os e-mails alheios). Retry leve em 429/5xx.
-- Autorização:
-  - Header `X-Cron-Secret` igual ao secret → libera (cron).
-  - Senão valida JWT e checa role admin via `has_role`.
-- CORS habilitado.
-
-### 2. Cron 07:00 BRT (= 10:00 UTC)
-SQL aplicado via `supabase--insert` (não vai em migration — evita vazar secret em remix):
 ```sql
-select cron.schedule(
-  'newsletter-daily-7am-brt',
-  '0 10 * * *',
-  $$ select net.http_post(
-    url := 'https://<project>.supabase.co/functions/v1/send-daily-newsletter',
-    headers := jsonb_build_object('Content-Type','application/json','X-Cron-Secret','<secret>'),
-    body := '{}'::jsonb
-  ); $$
-);
+create or replace function public.enforce_prediction_deadline()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare md timestamptz;
+begin
+  select match_date into md from public.matches where id = new.match_id;
+  if md is null then raise exception 'match not found'; end if;
+  if md - now() < interval '1 hour'
+     and not public.has_role(auth.uid(),'admin') then
+    raise exception 'Palpites bloqueados (faltam menos de 1h para o jogo)';
+  end if;
+  return new;
+end $$;
+
+create trigger trg_enforce_prediction_deadline
+before insert or update of home_score, away_score on public.predictions
+for each row execute function public.enforce_prediction_deadline();
 ```
 
-### 3. Card "Newsletter" em `/admin`
-- Input de data (default = ontem).
-- Input de e-mail de teste (default = e-mail do admin logado).
-- Botões:
-  - **Enviar teste para mim** (só pro e-mail informado).
-  - **Pré-visualizar** (dry run — abre o HTML retornado em nova aba).
-  - **Enviar para todos** (com confirmação dupla).
+#### B) Frontend para de mentir sobre o salvamento
 
-## Arquivos a criar/modificar
+Em `MatchCard.tsx` / `Games.tsx`:
+1. Quando o lock vira `true` com o input "sujo" (valor diferente do persistido), mostrar toast vermelho "Tempo esgotado — seu novo palpite NÃO foi salvo" e reverter o input para o valor persistido.
+2. Mostrar contagem regressiva em vermelho nos últimos 5 min.
+3. Tratar o erro do trigger backend (mensagem em português) com toast claro.
+4. Após `savePrediction`, esperar a confirmação e exibir o valor confirmado, não o que está em `editScores`.
 
-- **criar** `supabase/functions/send-daily-newsletter/index.ts`
-- **modificar** `src/pages/Admin.tsx` (adiciona o card "Newsletter")
-- **SQL via supabase--insert** (cron — não vira migration)
+#### C) Garantia contra o "limite de 1000 linhas" voltar
 
-## Não muda
+1. Manter o helper `fetchAllRows` como caminho padrão para qualquer leitura volumosa.
+2. Adicionar um lint guard simples (comentário + console.warn em dev) dentro do helper quando uma página atingir 1000 linhas, para detectar futuros candidatos cedo.
+3. Mover o cálculo do **ranking** para o servidor: criar uma RPC `get_full_ranking()` que retorna `user_id, name, total_points, exact, diff, side, result_only` agregados em SQL. O front recebe ~21 linhas em vez de 1000+. Mais rápido e imune a paginação.
+4. Aplicar a mesma lógica ao "top do dia" e ao mini-ranking da home.
 
-Schema, lógica de pontuação, ranking, palpites, `supabase/config.toml`, frontend fora do Admin.
+#### D) Conferência única agora
 
-## Depois de implementar eu entrego
+- Re-rodar `rebuild_ranking_snapshots('2026-06-13')` para garantir que todos os snapshots refletem o estado atualizado (já que o Xumi ficou com 5x0 por horas antes de eu corrigir para 4x0; mas como GER x CIV ainda não terminou, o snapshot dele não muda — só importa quando o resultado entrar).
+- Conferir que não há outra predição "fantasma" (input mudado mas não persistido) comparando `prediction_audit` vs estado atual: listar usuários com `updated_at > created_at` no audit que não bate com a predição final. Reportar achados ao admin.
 
-1. Como inserir o `BREVO_API_KEY` (eu abro o prompt seguro — você cola lá).
-2. Como rodar o teste: `/admin` → card Newsletter → "Enviar teste para mim".
-3. Lista de arquivos criados/modificados.
+### Resumo do que será alterado
 
-## Pergunta
+**Banco** (migration):
+- Função `enforce_prediction_deadline()` + trigger em `predictions`
+- RPC `get_full_ranking()` agregando em SQL
 
-Quer que eu dispare o envio inaugural de hoje (referente a ontem 19/06) automaticamente assim que terminar, ou prefere disparar você mesmo pelo botão após validar com o teste?
+**Código**:
+- `src/components/MatchCard.tsx`: detecção de lock com input sujo + toast de aviso
+- `src/pages/Games.tsx`: trata erro do trigger, revalida valor após salvar
+- `src/pages/Ranking.tsx` e `src/pages/Index.tsx`: trocar `fetchAllRows` em `predictions` por chamada à nova RPC `get_full_ranking()`
+- `src/lib/fetchAll.ts`: `console.warn` quando o resultado bate em N*1000
+
+**Dados** (insert tool):
+- `select public.rebuild_ranking_snapshots('2026-06-13'::timestamptz)` para reconciliar.
+
+Não mexe em layout, design tokens, scoring, nem na lógica de pontos.
