@@ -148,18 +148,25 @@ function datesAreClose(dbDate: string, apiDate: string, dayRange = 3): boolean {
   return diffDays <= dayRange;
 }
 
-async function fetchFromApi(token: string, dateFrom: string, dateTo: string, extra = ""): Promise<any[]> {
+async function fetchFromApi(
+  token: string,
+  dateFrom: string,
+  dateTo: string,
+  extra = ""
+): Promise<{ matches: any[]; quotaExceeded: boolean; status: number }> {
   const url = `https://api.football-data.org/v4/matches?dateFrom=${dateFrom}&dateTo=${dateTo}${extra ? "&" + extra : ""}`;
   console.log(`Fetching: ${url}`);
   const res = await fetch(url, { headers: { "X-Auth-Token": token } });
   if (!res.ok) {
-    console.error(`API error ${res.status}: ${await res.text()}`);
-    return [];
+    const text = await res.text();
+    console.error(`API error ${res.status}: ${text}`);
+    const quotaExceeded = res.status === 429 || res.status === 403 || /quota|limit/i.test(text);
+    return { matches: [], quotaExceeded, status: res.status };
   }
   const data = await res.json();
   const matches = data.matches || [];
   console.log(`API returned ${matches.length} matches`);
-  return matches;
+  return { matches, quotaExceeded: false, status: 200 };
 }
 
 serve(async (req) => {
