@@ -50,6 +50,12 @@ export default function Index() {
   useEffect(() => {
     fetchNextMatches();
     fetchTopRanking();
+    const channel = supabase
+      .channel("home-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, () => { fetchNextMatches(); fetchTopRanking(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "predictions" }, () => fetchTopRanking())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
