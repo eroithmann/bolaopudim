@@ -198,18 +198,54 @@ serve(async (req) => {
 
     console.log(`Found ${pendingMatches.length} pending matches`);
 
-    // Date range (expand +2 days for timezone safety)
-    const dates = pendingMatches.map(m => m.match_date.split("T")[0]);
-    const dateFrom = dates.reduce((a, b) => a < b ? a : b);
-    const dateToObj = new Date(dates.reduce((a, b) => a > b ? a : b));
+    // SMART GUARD: só chamar a API externa se houver jogo na janela útil
+    // (já começou há pelo menos 5min e há no máx 4h — quando resultados costumam aparecer).
+    // Fora dessa janela, a função sai cedo e não consome quota da football-data.org.
+    const nowMs = Date.now();
+    const inWindow = pendingMatches.filter((m) => {
+      const kickoff = new Date(m.match_date).getTime();
+      const elapsedMin = (nowMs - kickoff) / 60000;
+      return elapsedMin >= 5 && elapsedMin <= 240;
+    });
+
+    if (inWindow.length === 0) {
+      console.log(`Skipping API call — no matches in useful window (5min–4h after kickoff). Pending total: ${pendingMatches.length}`);
+      return new Response(JSON.stringify({
+        success: true,
+        skipped: true,
+        reason: "Nenhum jogo na janela útil (5min–4h após início)",
+        pending_total: pendingMatches.length,
+        updated: 0,
+      }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    console.log(`${inWindow.length} match(es) in useful window — calling API`);
+
+    // Date range cobre só os jogos da janela (+2 dias de margem)
+    const dates = inWindow.map((m) => m.match_date.split("T")[0]);
+    const dateFrom = dates.reduce((a, b) => (a < b ? a : b));
+    const dateToObj = new Date(dates.reduce((a, b) => (a > b ? a : b)));
     dateToObj.setDate(dateToObj.getDate() + 2);
     const dateTo = dateToObj.toISOString().split("T")[0];
 
     // Always fetch ALL statuses; we filter to FINISHED in code so that
     // matches still IN_PLAY / PAUSED / etc don't get reported as "names didn't match"
-    const apiMatches = await fetchFromApi(footballToken, dateFrom, dateTo);
+    const apiResult = await fetchFromApi(footballToken, dateFrom, dateTo);
 
-    const finishedMatches = apiMatches.filter(m =>
+    if (apiResult.quotaExceeded) {
+      console.warn("Quota exceeded on football-data.org — backing off");
+      return new Response(JSON.stringify({
+        success: false,
+        quota_exceeded: true,
+        status: apiResult.status,
+        message: "Quota da API externa esgotada. Lançe placares manualmente em /admin até o reset.",
+        pending_in_window: inWindow.length,
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    const apiMatches = apiResult.matches;
+
+    const finishedMatches = apiMatches.filter((m) =>
       m.status === "FINISHED" && m.score?.fullTime?.home != null
     );
 
