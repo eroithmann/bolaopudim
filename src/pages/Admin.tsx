@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, RefreshCw, Save, Check, Download, TrendingUp, Tv } from "lucide-react";
 import PredictionStatus from "@/components/admin/PredictionStatus";
+import NewsletterCard from "@/components/admin/NewsletterCard";
 
 interface MatchRow {
   id: string;
@@ -198,6 +199,10 @@ export default function Admin() {
 
         <div className="mb-6">
           <PredictionStatus />
+        </div>
+
+        <div className="mb-6">
+          <NewsletterCard />
         </div>
 
         <Tabs defaultValue="past" className="w-full">
