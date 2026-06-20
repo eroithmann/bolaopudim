@@ -1,0 +1,1 @@
+UPDATE public.matches SET match_date = '2026-06-20 03:00:00+00' WHERE id = '9b14e8b4-f5e9-4f3a-b093-f5652f0c5bbe';
