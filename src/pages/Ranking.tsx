@@ -40,11 +40,11 @@ export default function Ranking() {
   const fetchRanking = async () => {
     // Ranking agregado no servidor — imune ao limite de 1000 linhas do Data API
     const { data, error } = await supabase.rpc("get_full_ranking");
+    let sorted: RankingEntry[] = [];
     if (error) {
       console.error("get_full_ranking falhou:", error);
-      setRanking([]);
     } else {
-      const sorted = ((data as any[]) || [])
+      sorted = ((data as any[]) || [])
         .map((r) => ({
           user_id: r.user_id,
           name: r.name,
@@ -58,8 +58,9 @@ export default function Ranking() {
           if (b.total_points !== a.total_points) return b.total_points - a.total_points;
           return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
         });
-      setRanking(sorted);
     }
+    setRanking(sorted);
+
 
 
     // Posições anteriores: snapshot imediatamente antes do último jogo finalizado
