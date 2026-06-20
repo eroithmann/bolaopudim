@@ -1,86 +1,70 @@
-## Post-mortem
+## Diagnóstico do estouro
 
-### 1) Apostas não contabilizadas no NED x SWE
+O cron atual roda **a cada 2 minutos, 24h por dia** → ~720 execuções/dia. Cada execução faz pelo menos 1 request ao `api.football-data.org`. O plano Free tem teto mensal pequeno (~100 req/dia efetivos) — estourar era questão de tempo.
 
-**Causa raiz**: o PostgREST (API do Supabase) limita cada request a 1000 linhas por padrão. A tabela `predictions` tem 1012 linhas. Ao carregar o ranking, a página `/ranking` e a `/` fazem `select` em todas as predictions de uma vez — as 12 últimas (justamente as do jogo mais novo, NED x SWE) eram cortadas silenciosamente. O ranking somava só o que chegava. Em `PublicBets` o efeito era o "13/21 apostaram" e várias células "—".
+A função também não tem nenhum guard: chama a API mesmo quando não há nada pra atualizar (madrugada, dias sem jogo, etc.).
 
-Evidências:
-- `select count(*) from predictions` → 1012
-- `select count(*) from predictions where points is not null` → 1012
-- O jogo tinha 19 apostas no banco, mas só 13 chegavam no front
-- A correção via paginação (Ranking/Home/Evolution/PublicBets) restaurou os pontos
+## Estratégia aprovada
 
-**Status**: já corrigido com paginação manual em todos os consumers. Sobra um risco residual: qualquer `select` futuro que não pagine vai re-introduzir o bug quando a tabela crescer.
+Manter o cron rodando frequentemente (a cada 3 min), mas a função decide **dentro dela mesma** se vale a pena chamar a API externa. Regra:
 
-### 2) Xumi alterou de 5x0 → 4x0 e não pegou
+> Só chamar `api.football-data.org` se existir pelo menos um jogo com `status != 'finished'` cujo `match_date` esteja entre `now - 4h` e `now - 5min` (ou seja: já começou há pelo menos 5 min e tem menos de 4h desde o kickoff — janela onde resultados costumam aparecer).
 
-**Causa raiz (com base no audit)**:
-- `prediction_audit` mostra **apenas** o INSERT original (16/06, 5x0) e o UPDATE que eu fiz manualmente (20/06 19:18 UTC). **Nenhum** UPDATE feito pelo próprio Xumi entre essas datas.
-- O jogo GER x CIV começa às **20:00 UTC (17h BRT)**. O lock do app é 1h antes → **19:00 UTC (16h BRT)**.
-- Hoje, na rotina de atualização da página, o Xumi provavelmente trocou o valor no input bem em cima do horário de bloqueio. O lock é **só no frontend** (`now >= deadline`): quando o `now` passa do limite enquanto a tela está aberta, o botão "Salvar" some — mas o input já tem o número novo. Resultado: ele vê 4x0 na tela, acha que salvou, e o banco nunca recebeu.
-- Não há nenhuma proteção no backend: a policy de UPDATE é só `auth.uid() = user_id`, sem checar o horário. Se um cliente burlar o frontend, ainda passa.
+Isso elimina ~95% das chamadas e foca o consumo de quota exatamente na janela útil pós-jogo.
 
-### Correções para garantir que não aconteça de novo
+## Mudanças
 
-#### A) Backend trava o lock (defesa real)
+### 1) Edge function `fetch-match-results` — adicionar guard inicial
 
-Criar um trigger BEFORE INSERT/UPDATE em `public.predictions` que rejeita se `match_date - now() < 1h` (e o usuário não for admin). Isso:
-- impede salvar em cima do limite, retornando erro claro
-- elimina qualquer dúvida do tipo "achei que tinha salvado"
-- protege contra clientes que pulam a checagem do front
+Logo após buscar `pendingMatches`, filtrar para a **janela útil**:
 
-```sql
-create or replace function public.enforce_prediction_deadline()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare md timestamptz;
-begin
-  select match_date into md from public.matches where id = new.match_id;
-  if md is null then raise exception 'match not found'; end if;
-  if md - now() < interval '1 hour'
-     and not public.has_role(auth.uid(),'admin') then
-    raise exception 'Palpites bloqueados (faltam menos de 1h para o jogo)';
-  end if;
-  return new;
-end $$;
+```ts
+const nowMs = Date.now();
+const inWindow = pendingMatches.filter(m => {
+  const kickoff = new Date(m.match_date).getTime();
+  const elapsedMin = (nowMs - kickoff) / 60000;
+  return elapsedMin >= 5 && elapsedMin <= 240; // 5min a 4h após início
+});
 
-create trigger trg_enforce_prediction_deadline
-before insert or update of home_score, away_score on public.predictions
-for each row execute function public.enforce_prediction_deadline();
+if (inWindow.length === 0) {
+  return new Response(JSON.stringify({
+    success: true,
+    skipped: true,
+    reason: "Nenhum jogo na janela útil (5min–4h após início)",
+    pending_total: pendingMatches.length,
+  }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}
 ```
 
-#### B) Frontend para de mentir sobre o salvamento
+Depois disso, só os jogos `inWindow` viram alvo do matching contra a resposta da API. Importante: a chamada `fetchFromApi(...)` só acontece **se** `inWindow.length > 0`.
 
-Em `MatchCard.tsx` / `Games.tsx`:
-1. Quando o lock vira `true` com o input "sujo" (valor diferente do persistido), mostrar toast vermelho "Tempo esgotado — seu novo palpite NÃO foi salvo" e reverter o input para o valor persistido.
-2. Mostrar contagem regressiva em vermelho nos últimos 5 min.
-3. Tratar o erro do trigger backend (mensagem em português) com toast claro.
-4. Após `savePrediction`, esperar a confirmação e exibir o valor confirmado, não o que está em `editScores`.
+### 2) Cron — trocar `*/2` por `*/3` minutos
 
-#### C) Garantia contra o "limite de 1000 linhas" voltar
+Atualizar o job `fetch-match-results-every-5min` (nome errado, hoje roda a cada 2 min) para `*/3 * * * *`. A combinação `cron a cada 3min` + `guard de janela` dá:
 
-1. Manter o helper `fetchAllRows` como caminho padrão para qualquer leitura volumosa.
-2. Adicionar um lint guard simples (comentário + console.warn em dev) dentro do helper quando uma página atingir 1000 linhas, para detectar futuros candidatos cedo.
-3. Mover o cálculo do **ranking** para o servidor: criar uma RPC `get_full_ranking()` que retorna `user_id, name, total_points, exact, diff, side, result_only` agregados em SQL. O front recebe ~21 linhas em vez de 1000+. Mais rápido e imune a paginação.
-4. Aplicar a mesma lógica ao "top do dia" e ao mini-ranking da home.
+- Dias sem jogo: **0 requests à API** (função sai cedo).
+- Dia com 3 jogos: ~3 jogos × 4h × 20 chamadas/h = **240 requests/dia no pior caso**, mas como cada chamada já cobre TODOS os jogos do dia em 1 request, é só **~80 requests/dia** (a cada 3min × 4h por jogo, com sobreposição quando há jogos no mesmo dia).
 
-#### D) Conferência única agora
+### 3) Primeira ativação a partir de hoje 21h (BRT)
 
-- Re-rodar `rebuild_ranking_snapshots('2026-06-13')` para garantir que todos os snapshots refletem o estado atualizado (já que o Xumi ficou com 5x0 por horas antes de eu corrigir para 4x0; mas como GER x CIV ainda não terminou, o snapshot dele não muda — só importa quando o resultado entrar).
-- Conferir que não há outra predição "fantasma" (input mudado mas não persistido) comparando `prediction_audit` vs estado atual: listar usuários com `updated_at > created_at` no audit que não bate com a predição final. Reportar achados ao admin.
+O usuário disse que vai lançar manualmente o jogo das 17h BRT (que termina ~19h, quando a API ainda está bloqueada). Para o jogo de **21h BRT (00:00 UTC)** — terminando ~23h BRT (02:00 UTC) — o cron já estará rodando com a nova lógica.
 
-### Resumo do que será alterado
+Como precaução extra contra alertas da API enquanto a quota não reseta, vou adicionar tratamento explícito de **HTTP 429/403** na resposta da `fetchFromApi`: se vier "quota exceeded", a função retorna `{ success: false, quota_exceeded: true }` em vez de quebrar, e o cron não tenta de novo até que a quota volte (sem retries em loop).
 
-**Banco** (migration):
-- Função `enforce_prediction_deadline()` + trigger em `predictions`
-- RPC `get_full_ranking()` agregando em SQL
+### 4) Sem mudanças no front, no scoring, no design
 
-**Código**:
-- `src/components/MatchCard.tsx`: detecção de lock com input sujo + toast de aviso
-- `src/pages/Games.tsx`: trata erro do trigger, revalida valor após salvar
-- `src/pages/Ranking.tsx` e `src/pages/Index.tsx`: trocar `fetchAllRows` em `predictions` por chamada à nova RPC `get_full_ranking()`
-- `src/lib/fetchAll.ts`: `console.warn` quando o resultado bate em N*1000
+Só edge function + cron schedule. Nada quebra para o usuário final.
 
-**Dados** (insert tool):
-- `select public.rebuild_ranking_snapshots('2026-06-13'::timestamptz)` para reconciliar.
+## Arquivos alterados
 
-Não mexe em layout, design tokens, scoring, nem na lógica de pontos.
+- `supabase/functions/fetch-match-results/index.ts` — adicionar guard de janela + tratamento de 429/403.
+- Cron `fetch-match-results-every-5min` — `UPDATE cron.job` via supabase--insert para mudar schedule de `*/2 * * * *` → `*/3 * * * *` (e renomear para `fetch-match-results-smart`).
+
+## O que você faz manualmente
+
+- Lançar o placar do jogo das 17h BRT (hoje) pela tela `/admin` — porque a quota ainda está estourada e a API não vai responder até o reset.
+- A partir do jogo das 21h BRT, o cron novo já cuida sozinho (assumindo que a quota tenha resetado ou que sobre folga para o resto do mês).
+
+## Resposta à sua pergunta "isso reduz a chance de bloqueio?"
+
+**Sim, drasticamente.** Hoje: 720 chamadas/dia mesmo sem jogo. Depois: ~0 fora da janela útil; ~60-100/dia em dias de jogo. Cabe folgadamente no Free.
