@@ -55,10 +55,11 @@ export default function Ranking() {
       matchById.set(m.id, { home_score: m.home_score, away_score: m.away_score });
     });
 
-    const { data: predictions } = await supabase
-      .from("predictions")
-      .select("user_id, match_id, home_score, away_score, points")
-      .not("points", "is", null);
+    const predictions = await fetchAllRows<any>(
+      "predictions",
+      "user_id, match_id, home_score, away_score, points",
+      (q) => q.not("points", "is", null)
+    );
 
     const grouped: Record<string, RankingEntry> = {};
 
