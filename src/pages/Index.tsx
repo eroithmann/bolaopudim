@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +50,12 @@ export default function Index() {
   useEffect(() => {
     fetchNextMatches();
     fetchTopRanking();
+    const channel = supabase
+      .channel("home-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, () => { fetchNextMatches(); fetchTopRanking(); })
+      .on("postgres_changes", { event: "*", schema: "public", table: "predictions" }, () => fetchTopRanking())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   useEffect(() => {
@@ -69,9 +76,9 @@ export default function Index() {
   };
 
   const fetchTopRanking = async () => {
-    const [{ data: profiles }, { data: preds }] = await Promise.all([
+    const [{ data: profiles }, preds] = await Promise.all([
       supabase.from("profiles").select("user_id, name"),
-      supabase.from("predictions").select("user_id, points").not("points", "is", null),
+      fetchAllRows<any>("predictions", "user_id, points", (q) => q.not("points", "is", null)),
     ]);
 
     const grouped: Record<string, { name: string | null; total: number }> = {};

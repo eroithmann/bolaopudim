@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -59,11 +60,12 @@ export default function RankingEvolution() {
 
   useEffect(() => {
     (async () => {
-      const [snapRes, matchRes, profRes] = await Promise.all([
-        supabase
-          .from("ranking_snapshots")
-          .select("match_id, match_date, user_id, position, total_points")
-          .order("match_date", { ascending: true }),
+      const [snaps, matchRes, profRes] = await Promise.all([
+        fetchAllRows<Snapshot>(
+          "ranking_snapshots",
+          "match_id, match_date, user_id, position, total_points",
+          (q) => q.order("match_date", { ascending: true })
+        ),
         supabase
           .from("matches")
           .select(
@@ -73,7 +75,7 @@ export default function RankingEvolution() {
         supabase.from("profiles").select("user_id, name"),
       ]);
 
-      setSnapshots((snapRes.data as Snapshot[]) || []);
+      setSnapshots(snaps);
       setMatches(
         ((matchRes.data as any[]) || []).map((m) => ({
           id: m.id,

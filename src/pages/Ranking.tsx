@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllRows } from "@/lib/fetchAll";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -26,7 +27,15 @@ export default function Ranking() {
 
   useEffect(() => {
     fetchRanking();
+    const channel = supabase
+      .channel("ranking-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, () => fetchRanking())
+      .on("postgres_changes", { event: "*", schema: "public", table: "predictions" }, () => fetchRanking())
+      .on("postgres_changes", { event: "*", schema: "public", table: "ranking_snapshots" }, () => fetchRanking())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
+
 
   const fetchRanking = async () => {
     const { data: profiles } = await supabase
@@ -46,10 +55,11 @@ export default function Ranking() {
       matchById.set(m.id, { home_score: m.home_score, away_score: m.away_score });
     });
 
-    const { data: predictions } = await supabase
-      .from("predictions")
-      .select("user_id, match_id, home_score, away_score, points")
-      .not("points", "is", null);
+    const predictions = await fetchAllRows<any>(
+      "predictions",
+      "user_id, match_id, home_score, away_score, points",
+      (q) => q.not("points", "is", null)
+    );
 
     const grouped: Record<string, RankingEntry> = {};
 
@@ -96,10 +106,11 @@ export default function Ranking() {
     setRanking(sorted);
 
     // Posições anteriores: snapshot imediatamente antes do último jogo finalizado
-    const { data: snapshots } = await supabase
-      .from("ranking_snapshots")
-      .select("user_id, match_id, match_date, total_points")
-      .order("match_date", { ascending: true });
+    const snapshots = await fetchAllRows<any>(
+      "ranking_snapshots",
+      "user_id, match_id, match_date, total_points",
+      (q) => q.order("match_date", { ascending: true })
+    );
 
     if (snapshots && snapshots.length > 0) {
       // pegar lista ordenada de match_ids únicos (na ordem em que apareceram)
