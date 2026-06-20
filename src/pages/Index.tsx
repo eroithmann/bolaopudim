@@ -76,23 +76,17 @@ export default function Index() {
   };
 
   const fetchTopRanking = async () => {
-    const [{ data: profiles }, preds] = await Promise.all([
-      supabase.from("profiles").select("user_id, name"),
-      fetchAllRows<any>("predictions", "user_id, points", (q) => q.not("points", "is", null)),
-    ]);
-
-    const grouped: Record<string, { name: string | null; total: number }> = {};
-    (profiles || []).forEach((p: any) => {
-      grouped[p.user_id] = { name: p.name, total: 0 };
-    });
-    (preds || []).forEach((p: any) => {
-      if (!grouped[p.user_id]) grouped[p.user_id] = { name: null, total: 0 };
-      grouped[p.user_id].total += p.points || 0;
-    });
-    const sorted = Object.entries(grouped)
-      .map(([user_id, v]) => ({ user_id, name: v.name, total_points: v.total }))
+    const { data, error } = await supabase.rpc("get_full_ranking");
+    if (error) {
+      console.error("get_full_ranking falhou:", error);
+      setRanking([]);
+      return;
+    }
+    const sorted = ((data as any[]) || [])
+      .map((r) => ({ user_id: r.user_id, name: r.name, total_points: r.total_points ?? 0 }))
       .sort((a, b) => b.total_points - a.total_points);
     setRanking(sorted);
+
   };
 
   const fetchUserStatus = async () => {
