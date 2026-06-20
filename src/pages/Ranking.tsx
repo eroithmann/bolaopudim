@@ -27,7 +27,15 @@ export default function Ranking() {
 
   useEffect(() => {
     fetchRanking();
+    const channel = supabase
+      .channel("ranking-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "matches" }, () => fetchRanking())
+      .on("postgres_changes", { event: "*", schema: "public", table: "predictions" }, () => fetchRanking())
+      .on("postgres_changes", { event: "*", schema: "public", table: "ranking_snapshots" }, () => fetchRanking())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
+
 
   const fetchRanking = async () => {
     const { data: profiles } = await supabase
