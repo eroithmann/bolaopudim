@@ -18,14 +18,28 @@ export function useGamificationData() {
     queryKey: ["gamification-data"],
     staleTime: 30_000,
     queryFn: async () => {
-      const [m, p, prof, o, snaps, teams] = await Promise.all([
+      // PostgREST limita a 1000 linhas por request; pagina manualmente para predictions
+      const fetchAllPredictions = async () => {
+        const all: PredictionLite[] = [];
+        const PAGE = 1000;
+        for (let from = 0; ; from += PAGE) {
+          const { data, error } = await supabase
+            .from("predictions")
+            .select("user_id, match_id, home_score, away_score, points")
+            .range(from, from + PAGE - 1);
+          if (error || !data || data.length === 0) break;
+          all.push(...(data as PredictionLite[]));
+          if (data.length < PAGE) break;
+        }
+        return all;
+      };
+
+      const [m, predictions, prof, o, snaps, teams] = await Promise.all([
         supabase
           .from("matches")
           .select("id, phase, match_date, status, home_score, away_score, home_team_id, away_team_id")
           .order("match_date"),
-        supabase
-          .from("predictions")
-          .select("user_id, match_id, home_score, away_score, points"),
+        fetchAllPredictions(),
         supabase.from("profiles").select("user_id, name"),
         supabase
           .from("odds_cache")
