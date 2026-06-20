@@ -11,7 +11,7 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY");
-const CRON_SECRET = Deno.env.get("NEWSLETTER_CRON_SECRET");
+const CRON_SECRET_ENV = Deno.env.get("NEWSLETTER_CRON_SECRET");
 
 const APP_URL = "https://bolaopudim.lovable.app";
 const SENDER = { name: "TI do Bolão Pudim", email: "eroithmann@icloud.com" };
@@ -230,12 +230,20 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Autorização: cron secret OU admin JWT
+    // Autorização: cron secret (vault ou env) OU admin JWT
     const cronHeader = req.headers.get("x-cron-secret");
     let authed = false;
-    if (cronHeader && CRON_SECRET && cronHeader === CRON_SECRET) {
-      authed = true;
-    } else {
+    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+    if (cronHeader) {
+      let expected: string | null = CRON_SECRET_ENV ?? null;
+      if (!expected) {
+        const { data } = await admin.rpc("get_newsletter_cron_secret");
+        if (typeof data === "string") expected = data;
+      }
+      if (expected && cronHeader === expected) authed = true;
+    }
+    if (!authed) {
       const authHeader = req.headers.get("Authorization");
       if (authHeader?.startsWith("Bearer ")) {
         const userClient = createClient(SUPABASE_URL, ANON_KEY, {
@@ -244,7 +252,6 @@ Deno.serve(async (req) => {
         const token = authHeader.replace("Bearer ", "");
         const { data: claims } = await userClient.auth.getClaims(token);
         if (claims?.claims?.sub) {
-          const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
           const { data: roleRow } = await admin
             .from("user_roles").select("role").eq("user_id", claims.claims.sub).eq("role", "admin").maybeSingle();
           if (roleRow) authed = true;
