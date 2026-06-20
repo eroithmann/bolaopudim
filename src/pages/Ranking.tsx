@@ -38,72 +38,30 @@ export default function Ranking() {
 
 
   const fetchRanking = async () => {
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("user_id, name");
-
-    // Only fetch finished matches with scores
-    const { data: finishedMatches } = await supabase
-      .from("matches")
-      .select("id, home_score, away_score")
-      .eq("status", "finished")
-      .not("home_score", "is", null)
-      .not("away_score", "is", null);
-
-    const matchById = new Map<string, { home_score: number; away_score: number }>();
-    (finishedMatches || []).forEach((m: any) => {
-      matchById.set(m.id, { home_score: m.home_score, away_score: m.away_score });
-    });
-
-    const predictions = await fetchAllRows<any>(
-      "predictions",
-      "user_id, match_id, home_score, away_score, points",
-      (q) => q.not("points", "is", null)
-    );
-
-    const grouped: Record<string, RankingEntry> = {};
-
-    if (profiles) {
-      profiles.forEach((p: any) => {
-        grouped[p.user_id] = {
-          user_id: p.user_id,
-          name: p.name,
-          total_points: 0,
-          exact_scores: 0,
-          goal_diff: 0,
-          one_side_goals: 0,
-          results_only: 0,
-        };
-      });
+    // Ranking agregado no servidor — imune ao limite de 1000 linhas do Data API
+    const { data, error } = await supabase.rpc("get_full_ranking");
+    let sorted: RankingEntry[] = [];
+    if (error) {
+      console.error("get_full_ranking falhou:", error);
+    } else {
+      sorted = ((data as any[]) || [])
+        .map((r) => ({
+          user_id: r.user_id,
+          name: r.name,
+          total_points: r.total_points ?? 0,
+          exact_scores: r.exact_scores ?? 0,
+          goal_diff: r.goal_diff ?? 0,
+          one_side_goals: r.one_side_goals ?? 0,
+          results_only: r.results_only ?? 0,
+        }))
+        .sort((a, b) => {
+          if (b.total_points !== a.total_points) return b.total_points - a.total_points;
+          return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
+        });
     }
-
-    if (predictions) {
-      predictions.forEach((p: any) => {
-        if (!grouped[p.user_id]) return;
-        const m = matchById.get(p.match_id);
-        if (!m) return;
-        const pts = p.points || 0;
-        grouped[p.user_id].total_points += pts;
-        const exact = p.home_score === m.home_score && p.away_score === m.away_score;
-        const pDiff = p.home_score - p.away_score;
-        const rDiff = m.home_score - m.away_score;
-        const sameResult = Math.sign(pDiff) === Math.sign(rDiff);
-        const oneSideGoal = !exact && sameResult && (
-          (p.home_score === m.home_score && p.away_score !== m.away_score) ||
-          (p.away_score === m.away_score && p.home_score !== m.home_score)
-        );
-        if (exact) grouped[p.user_id].exact_scores++;
-        else if (sameResult && pDiff === rDiff && pDiff !== 0) grouped[p.user_id].goal_diff++;
-        else if (oneSideGoal) grouped[p.user_id].one_side_goals++;
-        else if (sameResult) grouped[p.user_id].results_only++;
-      });
-    }
-
-    const sorted = Object.values(grouped).sort((a, b) => {
-      if (b.total_points !== a.total_points) return b.total_points - a.total_points;
-      return (a.name || "").localeCompare(b.name || "", "pt-BR", { sensitivity: "base" });
-    });
     setRanking(sorted);
+
+
 
     // Posições anteriores: snapshot imediatamente antes do último jogo finalizado
     const snapshots = await fetchAllRows<any>(

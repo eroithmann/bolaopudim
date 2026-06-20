@@ -381,6 +381,18 @@ export type Database = {
         }
         Returns: number
       }
+      get_full_ranking: {
+        Args: never
+        Returns: {
+          exact_scores: number
+          goal_diff: number
+          name: string
+          one_side_goals: number
+          results_only: number
+          total_points: number
+          user_id: string
+        }[]
+      }
       get_newsletter_cron_secret: { Args: never; Returns: string }
       has_role: {
         Args: {

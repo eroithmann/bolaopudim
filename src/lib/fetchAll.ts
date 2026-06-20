@@ -21,5 +21,11 @@ export async function fetchAllRows<T = any>(
     out.push(...(data as T[]));
     if (data.length < PAGE) break;
   }
+  if (out.length >= PAGE && import.meta.env.DEV) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      `[fetchAllRows] ${table} retornou ${out.length} linhas — confirme que está paginando ou considere uma RPC agregada.`
+    );
+  }
   return out;
 }
