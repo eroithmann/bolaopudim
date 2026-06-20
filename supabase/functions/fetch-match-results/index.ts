@@ -259,7 +259,7 @@ serve(async (req) => {
     const matched: string[] = [];
     const unmatched: { game: string; reason: string }[] = [];
 
-    for (const match of pendingMatches) {
+    for (const match of inWindow) {
       const homeTeam = (match as any).home_team;
       const awayTeam = (match as any).away_team;
       if (!homeTeam || !awayTeam) {
