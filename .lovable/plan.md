@@ -1,83 +1,85 @@
 ## Objetivo
 
-Enviar uma newsletter diária a todos os usuários cadastrados:
-- **Hoje** (envio inaugural, disparado manual pelo admin): resumo dos jogos de **ontem** (19/06).
-- **A partir de amanhã**: todo dia às **07:00 BRT** automaticamente, com resumo do **dia anterior**.
+Newsletter diária para todos os usuários cadastrados:
+- **Hoje** (envio inaugural, manual pelo admin): resumo dos jogos de **ontem (19/06)**.
+- **A partir de amanhã**: todo dia às **07:00 BRT** automaticamente, com resumo do dia anterior.
 
-Conteúdo do e-mail (por dia coberto):
-- Jogos finalizados no dia (placar final).
-- Top 3 do dia (quem mais pontuou naqueles jogos) com pontos ganhos.
-- Top 3 do ranking geral acumulado até ali.
+Conteúdo de cada e-mail:
+- Jogos finalizados no dia (placar).
+- Top 3 do dia (quem pontuou mais naqueles jogos).
+- Top 3 do ranking geral acumulado.
 - Link para o app.
 
 ## Integração Brevo
 
-- API key armazenada como secret `BREVO_API_KEY` (solicitada via interface segura — eu abro o prompt depois que o plano for aprovado).
+- Chamada direta à API transacional Brevo (`POST https://api.brevo.com/v3/smtp/email`) a partir de edge function.
+- Sem MCP, sem connector gateway, sem SDK.
 - Remetente: `TI do Bolão Pudim <eroithmann@icloud.com>`.
-- Chamada direta à API transacional do Brevo (`https://api.brevo.com/v3/smtp/email`) a partir de edge function — sem MCP, sem connector gateway, sem SDK.
-- Key nunca aparece no frontend, no repo, nem em logs (logamos só status HTTP e contagem de envios).
+- Key lida via `Deno.env.get("BREVO_API_KEY")` — nunca no frontend, no código-fonte, no repo ou em logs.
+- Logs registram apenas status HTTP, contagens (`sent`/`failed`) e amostra de erros sem expor a key.
 
-## Arquitetura (edge functions Lovable Cloud)
+## Secrets
 
-1. **`send-daily-newsletter`** (`supabase/functions/send-daily-newsletter/index.ts`)
-   - Aceita `POST { date?: "YYYY-MM-DD", testEmail?: string, dryRun?: boolean }`.
-   - Sem `date` → usa "ontem" em BRT.
-   - Monta o conteúdo consultando `matches`, `predictions`, `profiles` via service role.
-   - Renderiza HTML inline (sem React Email — mantém leve, no padrão das outras funções do projeto).
-   - Destinatários:
-     - `testEmail` definido → envia só para esse e-mail (modo teste seguro).
-     - Senão → busca lista de e-mails de `auth.users` (via admin API com service role) cruzando com `profiles` para pegar nome.
-   - Envia 1 requisição por destinatário ao Brevo (com `to` individual para preservar privacidade). Retry leve em 429/5xx. Loga `{ sent, failed, sampleErrors }` sem expor a key.
-   - `dryRun: true` retorna o HTML sem enviar (para inspeção do admin).
-   - CORS habilitado, `verify_jwt = false` por padrão; valida internamente que o caller é admin **exceto** quando chamado pelo cron (header secreto `X-Cron-Secret` comparado a um segundo secret).
+- **`BREVO_API_KEY`** — você cola na interface segura quando eu abrir o prompt.
+- **`NEWSLETTER_CRON_SECRET`** — senha aleatória que eu gero e guardo como secret. Serve só para o cron das 7h provar que é ele mesmo chamando a função (header `X-Cron-Secret`). Você só clica "confirmar" no prompt.
 
-2. **Cron diário 07:00 BRT (= 10:00 UTC)** via `pg_cron` + `pg_net`, criado por SQL no banco (não em migration — usa `supabase--insert` para não vazar segredos em remix):
-   ```sql
-   select cron.schedule(
-     'newsletter-daily-7am-brt',
-     '0 10 * * *',
-     $$ select net.http_post(
-       url := 'https://<project>.supabase.co/functions/v1/send-daily-newsletter',
-       headers := '{"Content-Type":"application/json","X-Cron-Secret":"<secret>"}'::jsonb,
-       body := '{}'::jsonb
-     ); $$
-   );
-   ```
+## Arquitetura
 
-3. **Botão admin no `/admin`**: card "Newsletter" com:
-   - Input de data (default = ontem).
-   - Input de e-mail de teste (default = e-mail do admin logado).
-   - Botões: **Enviar teste para mim**, **Pré-visualizar (dry run)**, **Enviar para todos**.
-   - Confirmação dupla no "Enviar para todos".
+### 1. Edge function `send-daily-newsletter`
+`supabase/functions/send-daily-newsletter/index.ts`
 
-## Secrets necessários
+Aceita `POST` com body opcional:
+- `date?: "YYYY-MM-DD"` — sem isso, usa "ontem" em BRT.
+- `testEmail?: string` — se presente, envia só para esse endereço.
+- `dryRun?: boolean` — retorna o HTML montado sem enviar nada.
 
-- `BREVO_API_KEY` — solicitado via `add_secret` (interface segura). Valor que você colou no chat **não deve** ser repetido em texto; entre com ele no prompt seguro.
-- `NEWSLETTER_CRON_SECRET` — gerado e solicitado via `add_secret` para autenticar o cron.
+Lógica:
+- Usa service role para ler `matches`, `predictions`, `profiles` e (para destinatários reais) `auth.users` via admin API.
+- Monta HTML inline (sem React Email — fica leve, no padrão das outras functions do projeto).
+- Envia 1 request por destinatário ao Brevo (preserva privacidade — ninguém vê os e-mails alheios). Retry leve em 429/5xx.
+- Autorização:
+  - Header `X-Cron-Secret` igual ao secret → libera (cron).
+  - Senão valida JWT e checa role admin via `has_role`.
+- CORS habilitado.
 
-## Hospedagem / compatibilidade
+### 2. Cron 07:00 BRT (= 10:00 UTC)
+SQL aplicado via `supabase--insert` (não vai em migration — evita vazar secret em remix):
+```sql
+select cron.schedule(
+  'newsletter-daily-7am-brt',
+  '0 10 * * *',
+  $$ select net.http_post(
+    url := 'https://<project>.supabase.co/functions/v1/send-daily-newsletter',
+    headers := jsonb_build_object('Content-Type','application/json','X-Cron-Secret','<secret>'),
+    body := '{}'::jsonb
+  ); $$
+);
+```
 
-Projeto roda em Lovable Cloud (Supabase). Edge functions Deno são o caminho nativo — nenhuma mudança de arquitetura. Frontend continua puro React/Vite.
+### 3. Card "Newsletter" em `/admin`
+- Input de data (default = ontem).
+- Input de e-mail de teste (default = e-mail do admin logado).
+- Botões:
+  - **Enviar teste para mim** (só pro e-mail informado).
+  - **Pré-visualizar** (dry run — abre o HTML retornado em nova aba).
+  - **Enviar para todos** (com confirmação dupla).
 
 ## Arquivos a criar/modificar
 
 - **criar** `supabase/functions/send-daily-newsletter/index.ts`
-- **modificar** `src/pages/Admin.tsx` (novo card "Newsletter" com os 3 botões)
-- **SQL via supabase--insert** (cron job — não vai pra migration)
+- **modificar** `src/pages/Admin.tsx` (adiciona o card "Newsletter")
+- **SQL via supabase--insert** (cron — não vira migration)
 
-## O que NÃO vai mudar
+## Não muda
 
-- Lógica de pontuação, ranking, palpites.
-- Schema do banco.
-- `supabase/config.toml` (function default já serve).
-- Nenhum código no frontend além do card admin.
+Schema, lógica de pontuação, ranking, palpites, `supabase/config.toml`, frontend fora do Admin.
 
-## Instruções finais (entrego no chat após implementar)
+## Depois de implementar eu entrego
 
-1. Onde inserir o secret `BREVO_API_KEY` (vou abrir o prompt seguro automaticamente — você cola o valor lá; nunca aqui no chat).
-2. Como rodar o teste: ir em `/admin` → card Newsletter → "Enviar teste para mim".
+1. Como inserir o `BREVO_API_KEY` (eu abro o prompt seguro — você cola lá).
+2. Como rodar o teste: `/admin` → card Newsletter → "Enviar teste para mim".
 3. Lista de arquivos criados/modificados.
 
-## Pergunta antes de implementar
+## Pergunta
 
-Quer que o envio inaugural de **hoje** referente a **ontem (19/06)** dispare automaticamente assim que eu terminar, ou prefere disparar você mesmo pelo botão do admin após validar com o teste?
+Quer que eu dispare o envio inaugural de hoje (referente a ontem 19/06) automaticamente assim que terminar, ou prefere disparar você mesmo pelo botão após validar com o teste?
