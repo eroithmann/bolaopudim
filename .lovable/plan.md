@@ -1,53 +1,83 @@
 ## Objetivo
 
-Adicionar dois indicadores de progresso no topo da página **Stats** ("Estatísticas da galera"):
+Enviar uma newsletter diária a todos os usuários cadastrados:
+- **Hoje** (envio inaugural, disparado manual pelo admin): resumo dos jogos de **ontem** (19/06).
+- **A partir de amanhã**: todo dia às **07:00 BRT** automaticamente, com resumo do **dia anterior**.
 
-1. **Jogos disputados** — ex: `10 de 104 jogos` + barra de progresso
-2. **Pontos em disputa já distribuídos** — ex: `200 de 810 pts` + barra de progresso
+Conteúdo do e-mail (por dia coberto):
+- Jogos finalizados no dia (placar final).
+- Top 3 do dia (quem mais pontuou naqueles jogos) com pontos ganhos.
+- Top 3 do ranking geral acumulado até ali.
+- Link para o app.
 
-Ambos usando o componente `Progress` já existente do shadcn.
+## Integração Brevo
 
-## Onde
+- API key armazenada como secret `BREVO_API_KEY` (solicitada via interface segura — eu abro o prompt depois que o plano for aprovado).
+- Remetente: `TI do Bolão Pudim <eroithmann@icloud.com>`.
+- Chamada direta à API transacional do Brevo (`https://api.brevo.com/v3/smtp/email`) a partir de edge function — sem MCP, sem connector gateway, sem SDK.
+- Key nunca aparece no frontend, no repo, nem em logs (logamos só status HTTP e contagem de envios).
 
-Novo componente `src/components/gamification/TournamentProgress.tsx`, renderizado no topo de `src/pages/Stats.tsx` (acima do `RoundPodium`).
+## Arquitetura (edge functions Lovable Cloud)
 
-## Cálculo
+1. **`send-daily-newsletter`** (`supabase/functions/send-daily-newsletter/index.ts`)
+   - Aceita `POST { date?: "YYYY-MM-DD", testEmail?: string, dryRun?: boolean }`.
+   - Sem `date` → usa "ontem" em BRT.
+   - Monta o conteúdo consultando `matches`, `predictions`, `profiles` via service role.
+   - Renderiza HTML inline (sem React Email — mantém leve, no padrão das outras funções do projeto).
+   - Destinatários:
+     - `testEmail` definido → envia só para esse e-mail (modo teste seguro).
+     - Senão → busca lista de e-mails de `auth.users` (via admin API com service role) cruzando com `profiles` para pegar nome.
+   - Envia 1 requisição por destinatário ao Brevo (com `to` individual para preservar privacidade). Retry leve em 429/5xx. Loga `{ sent, failed, sampleErrors }` sem expor a key.
+   - `dryRun: true` retorna o HTML sem enviar (para inspeção do admin).
+   - CORS habilitado, `verify_jwt = false` por padrão; valida internamente que o caller é admin **exceto** quando chamado pelo cron (header secreto `X-Cron-Secret` comparado a um segundo secret).
 
-Lê `data.matches` (já disponível via `useGamificationData`).
+2. **Cron diário 07:00 BRT (= 10:00 UTC)** via `pg_cron` + `pg_net`, criado por SQL no banco (não em migration — usa `supabase--insert` para não vazar segredos em remix):
+   ```sql
+   select cron.schedule(
+     'newsletter-daily-7am-brt',
+     '0 10 * * *',
+     $$ select net.http_post(
+       url := 'https://<project>.supabase.co/functions/v1/send-daily-newsletter',
+       headers := '{"Content-Type":"application/json","X-Cron-Secret":"<secret>"}'::jsonb,
+       body := '{}'::jsonb
+     ); $$
+   );
+   ```
 
-**Jogos:**
-- `total = matches.length` (deve ser 104 na Copa 2026: 72 grupos + 16 + 8 + 4 + 2 + 1 + 1)
-- `played = matches.filter(m => m.status === 'finished').length`
+3. **Botão admin no `/admin`**: card "Newsletter" com:
+   - Input de data (default = ontem).
+   - Input de e-mail de teste (default = e-mail do admin logado).
+   - Botões: **Enviar teste para mim**, **Pré-visualizar (dry run)**, **Enviar para todos**.
+   - Confirmação dupla no "Enviar para todos".
 
-**Pontos em disputa** — máximo possível por jogo é `5 × phase_multiplier(phase)` (mesma função do banco). Multiplicadores:
+## Secrets necessários
 
-| Fase | Mult | Jogos | Máx/jogo | Total fase |
-|------|------|-------|----------|------------|
-| groups | 1 | 72 | 5 | 360 |
-| round_of_32 | 2 | 16 | 10 | 160 |
-| round_of_16 | 3 | 8 | 15 | 120 |
-| quarterfinals | 4 | 4 | 20 | 80 |
-| semifinals | 5 | 2 | 25 | 50 |
-| third_place | 2 | 1 | 10 | 10 |
-| final | 6 | 1 | 30 | 30 |
-| **Total** | | **104** | | **810** |
+- `BREVO_API_KEY` — solicitado via `add_secret` (interface segura). Valor que você colou no chat **não deve** ser repetido em texto; entre com ele no prompt seguro.
+- `NEWSLETTER_CRON_SECRET` — gerado e solicitado via `add_secret` para autenticar o cron.
 
-- `totalPoints = soma de 5 * mult(phase) sobre todos matches`
-- `playedPoints = soma de 5 * mult(phase) sobre matches com status='finished'`
+## Hospedagem / compatibilidade
 
-(O cálculo é dinâmico em cima de `matches`, então se mudar a tabela continua certo.)
+Projeto roda em Lovable Cloud (Supabase). Edge functions Deno são o caminho nativo — nenhuma mudança de arquitetura. Frontend continua puro React/Vite.
 
-## UI
+## Arquivos a criar/modificar
 
-Card único com duas linhas, cada uma com:
-- label à esquerda ("Jogos disputados" / "Pontos em disputa")
-- contagem à direita (`10 / 104` · `10%`)
-- `<Progress value={pct} />` abaixo
+- **criar** `supabase/functions/send-daily-newsletter/index.ts`
+- **modificar** `src/pages/Admin.tsx` (novo card "Newsletter" com os 3 botões)
+- **SQL via supabase--insert** (cron job — não vai pra migration)
 
-Visual coerente com `StatsGrid` (mesmo tom de card, tipografia tabular-nums).
+## O que NÃO vai mudar
 
-## Não muda
+- Lógica de pontuação, ranking, palpites.
+- Schema do banco.
+- `supabase/config.toml` (function default já serve).
+- Nenhum código no frontend além do card admin.
 
-- Nenhuma lógica de palpites/pontos/ranking
-- Nenhum schema, função ou edge function
-- `useGamificationData` permanece igual (já traz `matches` com `phase` e `status`)
+## Instruções finais (entrego no chat após implementar)
+
+1. Onde inserir o secret `BREVO_API_KEY` (vou abrir o prompt seguro automaticamente — você cola o valor lá; nunca aqui no chat).
+2. Como rodar o teste: ir em `/admin` → card Newsletter → "Enviar teste para mim".
+3. Lista de arquivos criados/modificados.
+
+## Pergunta antes de implementar
+
+Quer que o envio inaugural de **hoje** referente a **ontem (19/06)** dispare automaticamente assim que eu terminar, ou prefere disparar você mesmo pelo botão do admin após validar com o teste?
