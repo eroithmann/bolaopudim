@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
     const testEmail: string | undefined = body.testEmail;
     const dryRun: boolean = !!body.dryRun;
 
-    const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
+    // admin client já criado acima
     const { subject, html, stats } = await buildHtml(admin, dateStr);
 
     if (dryRun) {
