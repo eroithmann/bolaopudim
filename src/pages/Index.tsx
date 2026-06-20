@@ -76,9 +76,9 @@ export default function Index() {
   };
 
   const fetchTopRanking = async () => {
-    const [{ data: profiles }, { data: preds }] = await Promise.all([
+    const [{ data: profiles }, preds] = await Promise.all([
       supabase.from("profiles").select("user_id, name"),
-      supabase.from("predictions").select("user_id, points").not("points", "is", null),
+      fetchAllRows<any>("predictions", "user_id, points", (q) => q.not("points", "is", null)),
     ]);
 
     const grouped: Record<string, { name: string | null; total: number }> = {};
