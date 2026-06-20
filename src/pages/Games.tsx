@@ -205,9 +205,37 @@ export default function Games() {
     const scores = editScores[matchId];
     if (!scores || scores.home === "" || scores.away === "") return;
 
+    // Defesa cliente: se já passou o deadline (1h antes), nem tenta salvar
+    const match = matches.find((m) => m.id === matchId);
+    if (match) {
+      const deadline = new Date(match.match_date).getTime() - 60 * 60 * 1000;
+      if (Date.now() >= deadline) {
+        toast({
+          title: "Tempo esgotado",
+          description: "Faltam menos de 1h para o jogo — palpite não foi salvo.",
+          variant: "destructive",
+        });
+        // Reverte input para o valor persistido (ou limpa)
+        const pred = predictions[matchId];
+        setEditScores((s) => ({
+          ...s,
+          [matchId]: {
+            home: pred ? String(pred.home_score) : "",
+            away: pred ? String(pred.away_score) : "",
+          },
+        }));
+        return;
+      }
+    }
+
     setSaving((s) => ({ ...s, [matchId]: true }));
     const homeScore = parseInt(scores.home);
     const awayScore = parseInt(scores.away);
+
+    const friendlyError = (msg: string) =>
+      msg.includes("Palpites bloqueados") || msg.toLowerCase().includes("deadline")
+        ? "Tempo esgotado: faltam menos de 1h para o jogo. Seu palpite NÃO foi salvo."
+        : msg;
 
     const existing = predictions[matchId];
     if (existing) {
@@ -217,20 +245,21 @@ export default function Games() {
         .eq("user_id", user.id)
         .eq("match_id", matchId);
       if (error) {
-        toast({ title: "Erro", description: error.message, variant: "destructive" });
+        toast({ title: "Erro", description: friendlyError(error.message), variant: "destructive" });
+        await fetchPredictions(); // ressincroniza o input com o que está no banco
       } else {
         toast({ title: "Palpite atualizado!" });
-        fetchPredictions();
+        await fetchPredictions();
       }
     } else {
       const { error } = await supabase
         .from("predictions")
         .insert({ user_id: user.id, match_id: matchId, home_score: homeScore, away_score: awayScore });
       if (error) {
-        toast({ title: "Erro", description: error.message, variant: "destructive" });
+        toast({ title: "Erro", description: friendlyError(error.message), variant: "destructive" });
       } else {
         toast({ title: "Palpite salvo!" });
-        fetchPredictions();
+        await fetchPredictions();
       }
     }
     setSaving((s) => ({ ...s, [matchId]: false }));
