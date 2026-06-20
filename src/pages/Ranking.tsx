@@ -106,10 +106,11 @@ export default function Ranking() {
     setRanking(sorted);
 
     // Posições anteriores: snapshot imediatamente antes do último jogo finalizado
-    const { data: snapshots } = await supabase
-      .from("ranking_snapshots")
-      .select("user_id, match_id, match_date, total_points")
-      .order("match_date", { ascending: true });
+    const snapshots = await fetchAllRows<any>(
+      "ranking_snapshots",
+      "user_id, match_id, match_date, total_points",
+      (q) => q.order("match_date", { ascending: true })
+    );
 
     if (snapshots && snapshots.length > 0) {
       // pegar lista ordenada de match_ids únicos (na ordem em que apareceram)
