@@ -59,7 +59,7 @@ export function useGamificationData() {
 
       return {
         matches: (m.data as MatchLite[]) || [],
-        predictions: (p.data as PredictionLite[]) || [],
+        predictions,
         profiles: (prof.data as ProfileLite[]) || [],
         oddsByMatch,
         snapshots: (snaps.data as RankingSnapshotLite[]) || [],
