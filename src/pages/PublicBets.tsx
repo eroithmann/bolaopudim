@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronDown, Lock, Users } from "lucide-react";
+import { fetchAllPredictions } from "@/lib/fetchAllPredictions";
 
 
 interface MatchRow {
