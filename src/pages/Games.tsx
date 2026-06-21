@@ -182,12 +182,10 @@ export default function Games() {
       return;
     }
 
-    const { data } = await supabase
-      .from("predictions")
-      .select("match_id, home_score, away_score")
-      .in("match_id", lockedMatchIds);
-
-    if (!data) return;
+    const data = await fetchAllPredictions<{ match_id: string; home_score: number; away_score: number }>(
+      "match_id, home_score, away_score",
+      (q) => q.in("match_id", lockedMatchIds),
+    );
 
     const dist: Record<string, { home: number; draw: number; away: number; total: number }> = {};
     data.forEach((p) => {
