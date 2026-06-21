@@ -8,6 +8,7 @@ import { ChevronDown } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import MatchCard from "@/components/MatchCard";
 import { formatBrazilDayHeading, getBrazilDayKey } from "@/lib/brazilDate";
+import { fetchAllPredictions } from "@/lib/fetchAllPredictions";
 
 interface MatchWithTeams {
   id: string;
