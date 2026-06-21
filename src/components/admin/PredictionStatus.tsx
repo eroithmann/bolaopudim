@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { fetchAllPredictions } from "@/lib/fetchAllPredictions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -33,7 +34,7 @@ export default function PredictionStatus() {
   useEffect(() => {
     (async () => {
       const nowIso = new Date().toISOString();
-      const [{ data: m }, { data: p }, { data: preds }] = await Promise.all([
+      const [{ data: m }, { data: p }, preds] = await Promise.all([
         supabase
           .from("matches")
           .select(
@@ -42,7 +43,7 @@ export default function PredictionStatus() {
           .gt("match_date", nowIso)
           .order("match_date", { ascending: true }),
         supabase.from("profiles").select("user_id, name"),
-        supabase.from("predictions").select("user_id, match_id"),
+        fetchAllPredictions<{ user_id: string; match_id: string }>("user_id, match_id"),
       ]);
 
       const map: Record<string, Set<string>> = {};

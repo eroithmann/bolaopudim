@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronDown, Lock, Users } from "lucide-react";
+import { fetchAllPredictions } from "@/lib/fetchAllPredictions";
 
 
 interface MatchRow {
@@ -49,18 +50,9 @@ export default function PublicBets() {
       supabase.from("profiles").select("user_id, name"),
     ]);
 
-    // Paginação manual: o PostgREST limita a 1000 linhas por request
-    const allPreds: PredictionRow[] = [];
-    const PAGE = 1000;
-    for (let from = 0; ; from += PAGE) {
-      const { data, error } = await supabase
-        .from("predictions")
-        .select("user_id, match_id, home_score, away_score, points")
-        .range(from, from + PAGE - 1);
-      if (error || !data || data.length === 0) break;
-      allPreds.push(...(data as PredictionRow[]));
-      if (data.length < PAGE) break;
-    }
+    const allPreds = await fetchAllPredictions<PredictionRow>(
+      "user_id, match_id, home_score, away_score, points",
+    );
 
     setMatches((m.data as MatchRow[]) || []);
     setTeams(new Map(((t.data as TeamRow[]) || []).map(x => [x.id, x])));
