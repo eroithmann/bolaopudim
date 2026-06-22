@@ -142,6 +142,18 @@ export default function Ranking() {
     return null;
   };
 
+  const PointsDelta = ({ userId, current }: { userId: string; current: number }) => {
+    const prev = previousPoints[userId];
+    if (prev === undefined) return null;
+    const delta = current - prev;
+    if (delta <= 0) return null;
+    return (
+      <span className="ml-1 text-[10px] font-medium text-emerald-600 tabular-nums align-middle">
+        (+{delta})
+      </span>
+    );
+  };
+
   const top3 = ranking.slice(0, 3);
   // Display order for podium: 2nd, 1st, 3rd
   const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
