@@ -201,11 +201,18 @@ export default function Ranking() {
     return null;
   };
 
-  const PointsDelta = ({ userId, current }: { userId: string; current: number }) => {
+  const PointsDelta = ({ userId, current, inline = true }: { userId: string; current: number; inline?: boolean }) => {
     const prev = previousPoints[userId];
     if (prev === undefined) return null;
     const delta = current - prev;
     if (delta <= 0) return null;
+    if (inline) {
+      return (
+        <span className="ml-1 text-[10px] font-medium text-emerald-600 tabular-nums align-middle">
+          (+{delta})
+        </span>
+      );
+    }
     return (
       <span className="text-[10px] font-medium text-emerald-600 tabular-nums">
         +{delta}
