@@ -350,6 +350,7 @@ export default function Ranking() {
                     <TableRow>
                       <TableHead className="w-16">#</TableHead>
                       <TableHead>Jogador</TableHead>
+                      <TableHead className="text-center">Recentes</TableHead>
                       <TableHead className="text-center">Pontos</TableHead>
                       <TableHead className="text-center">Exatos</TableHead>
                       <TableHead className="text-center">Saldo</TableHead>
