@@ -378,6 +378,9 @@ export default function Ranking() {
                           {entry.name || "Anônimo"}
                           {isMe && <Badge className="ml-2 bg-primary/20 text-primary text-[10px]">você</Badge>}
                         </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex justify-center"><FormDots userId={entry.user_id} /></span>
+                        </TableCell>
                         <TableCell className="text-center font-bold text-primary text-lg">
                           {entry.total_points}
                           <PointsDelta userId={entry.user_id} current={entry.total_points} />
