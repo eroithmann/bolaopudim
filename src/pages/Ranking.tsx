@@ -162,7 +162,7 @@ export default function Ranking() {
       const form: Record<string, FormDot[]> = {};
       sorted.forEach((u) => {
         const userMap = byUser.get(u.user_id);
-        form[u.user_id] = orderedAsc.map((mid) => (userMap?.get(mid) ?? "r"));
+        form[u.user_id] = orderedAsc.map((mid) => (userMap?.get(mid) ?? null));
       });
       setRecentForm(form);
     } else {
