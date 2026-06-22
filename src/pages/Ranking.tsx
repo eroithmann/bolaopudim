@@ -329,9 +329,11 @@ export default function Ranking() {
                       <div className="text-right shrink-0">
                         <div className="text-lg font-bold text-primary tabular-nums leading-none">
                           {entry.total_points}
-                          <PointsDelta userId={entry.user_id} current={entry.total_points} />
                         </div>
-                        <div className="text-[10px] text-muted-foreground leading-none mt-0.5">pts</div>
+                        <div className="text-[10px] text-muted-foreground leading-none mt-0.5 flex items-center justify-end gap-1">
+                          <PointsDelta userId={entry.user_id} current={entry.total_points} />
+                          <span>pts</span>
+                        </div>
                         <div className="mt-1 flex justify-end">
                           <FormDots userId={entry.user_id} size="xs" />
                         </div>
