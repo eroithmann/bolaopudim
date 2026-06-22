@@ -106,6 +106,7 @@ export default function Ranking() {
           prevPos[e.user_id] = pos;
         });
         setPreviousPositions(prevPos);
+        setPreviousPoints(Object.fromEntries(prevByUser));
       }
     }
 
