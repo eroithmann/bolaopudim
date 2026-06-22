@@ -23,6 +23,7 @@ export default function Ranking() {
   const { user } = useAuth();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [previousPositions, setPreviousPositions] = useState<Record<string, number>>({});
+  const [previousPoints, setPreviousPoints] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -105,6 +106,7 @@ export default function Ranking() {
           prevPos[e.user_id] = pos;
         });
         setPreviousPositions(prevPos);
+        setPreviousPoints(Object.fromEntries(prevByUser));
       }
     }
 
@@ -138,6 +140,18 @@ export default function Ranking() {
       return <ArrowDown className="h-3.5 w-3.5 text-red-600 shrink-0" aria-label={`caiu ${currentPos - prev}`} />;
     }
     return null;
+  };
+
+  const PointsDelta = ({ userId, current }: { userId: string; current: number }) => {
+    const prev = previousPoints[userId];
+    if (prev === undefined) return null;
+    const delta = current - prev;
+    if (delta <= 0) return null;
+    return (
+      <span className="ml-1 text-[10px] font-medium text-emerald-600 tabular-nums align-middle">
+        (+{delta})
+      </span>
+    );
   };
 
   const top3 = ranking.slice(0, 3);
@@ -184,6 +198,7 @@ export default function Ranking() {
                             </div>
                             <div className="text-lg sm:text-xl font-bold text-primary tabular-nums">
                               {entry.total_points}
+                              <PointsDelta userId={entry.user_id} current={entry.total_points} />
                             </div>
                           </div>
                           <div className={`relative w-full rounded-t-lg flex items-center justify-center text-white font-bold text-2xl ${podiumHeights[heightIdx]} ${podiumColors[heightIdx]}`}>
@@ -227,7 +242,10 @@ export default function Ranking() {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-lg font-bold text-primary tabular-nums leading-none">{entry.total_points}</div>
+                        <div className="text-lg font-bold text-primary tabular-nums leading-none">
+                          {entry.total_points}
+                          <PointsDelta userId={entry.user_id} current={entry.total_points} />
+                        </div>
                         <div className="text-[10px] text-muted-foreground">pts</div>
                       </div>
                     </div>
@@ -271,7 +289,10 @@ export default function Ranking() {
                           {entry.name || "Anônimo"}
                           {isMe && <Badge className="ml-2 bg-primary/20 text-primary text-[10px]">você</Badge>}
                         </TableCell>
-                        <TableCell className="text-center font-bold text-primary text-lg">{entry.total_points}</TableCell>
+                        <TableCell className="text-center font-bold text-primary text-lg">
+                          {entry.total_points}
+                          <PointsDelta userId={entry.user_id} current={entry.total_points} />
+                        </TableCell>
                         <TableCell className="text-center">{entry.exact_scores}</TableCell>
                         <TableCell className="text-center">{entry.goal_diff}</TableCell>
                         <TableCell className="text-center">{entry.one_side_goals}</TableCell>
