@@ -241,7 +241,10 @@ export default function Ranking() {
                         </div>
                       </div>
                       <div className="text-right shrink-0">
-                        <div className="text-lg font-bold text-primary tabular-nums leading-none">{entry.total_points}</div>
+                        <div className="text-lg font-bold text-primary tabular-nums leading-none">
+                          {entry.total_points}
+                          <PointsDelta userId={entry.user_id} current={entry.total_points} />
+                        </div>
                         <div className="text-[10px] text-muted-foreground">pts</div>
                       </div>
                     </div>
