@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
+import { fetchAllPredictions } from "@/lib/fetchAllPredictions";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,11 +20,15 @@ interface RankingEntry {
   results_only: number;
 }
 
+// farol dos últimos 3 jogos: g=placar exato, y=saldo/gols de um lado, r=errou ou sem palpite
+type FormDot = "g" | "y" | "r" | null;
+
 export default function Ranking() {
   const { user } = useAuth();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [previousPositions, setPreviousPositions] = useState<Record<string, number>>({});
   const [previousPoints, setPreviousPoints] = useState<Record<string, number>>({});
+  const [recentForm, setRecentForm] = useState<Record<string, FormDot[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -110,6 +115,60 @@ export default function Ranking() {
       }
     }
 
+    // Farol: últimos 3 jogos finalizados, por usuário
+    const { data: lastMatches } = await supabase
+      .from("matches")
+      .select("id, home_score, away_score, match_date")
+      .eq("status", "finished")
+      .not("home_score", "is", null)
+      .not("away_score", "is", null)
+      .order("match_date", { ascending: false })
+      .limit(3);
+
+    const recentIds = ((lastMatches as any[]) || []).map((m) => m.id);
+    if (recentIds.length > 0) {
+      const resultById = new Map<string, { h: number; a: number }>();
+      ((lastMatches as any[]) || []).forEach((m) =>
+        resultById.set(m.id, { h: m.home_score, a: m.away_score })
+      );
+      const recentPreds = await fetchAllPredictions<{
+        user_id: string;
+        match_id: string;
+        home_score: number;
+        away_score: number;
+      }>("user_id, match_id, home_score, away_score", (q) => q.in("match_id", recentIds));
+
+      const classify = (ph: number, pa: number, rh: number, ra: number): FormDot => {
+        if (ph === rh && pa === ra) return "g";
+        const pr = Math.sign(ph - pa);
+        const rr = Math.sign(rh - ra);
+        if (pr !== rr) return "r";
+        if (rr !== 0 && ph - pa === rh - ra) return "y"; // saldo certo
+        if (ph === rh || pa === ra) return "y"; // gols de um lado
+        return "r"; // apenas resultado / empate sem placar exato
+      };
+
+      const byUser = new Map<string, Map<string, FormDot>>();
+      recentPreds.forEach((p) => {
+        const res = resultById.get(p.match_id);
+        if (!res) return;
+        const dot = classify(p.home_score, p.away_score, res.h, res.a);
+        if (!byUser.has(p.user_id)) byUser.set(p.user_id, new Map());
+        byUser.get(p.user_id)!.set(p.match_id, dot);
+      });
+
+      // recentIds está em ordem desc — vamos mostrar do mais antigo p/ mais recente
+      const orderedAsc = [...recentIds].reverse();
+      const form: Record<string, FormDot[]> = {};
+      sorted.forEach((u) => {
+        const userMap = byUser.get(u.user_id);
+        form[u.user_id] = orderedAsc.map((mid) => (userMap?.get(mid) ?? null));
+      });
+      setRecentForm(form);
+    } else {
+      setRecentForm({});
+    }
+
     setLoading(false);
   };
 
@@ -150,6 +209,32 @@ export default function Ranking() {
     return (
       <span className="ml-1 text-[10px] font-medium text-emerald-600 tabular-nums align-middle">
         (+{delta})
+      </span>
+    );
+  };
+
+  const dotColor = (d: FormDot) => {
+    if (d === "g") return "bg-emerald-500";
+    if (d === "y") return "bg-yellow-400";
+    if (d === "r") return "bg-red-500";
+    return "bg-muted-foreground/25";
+  };
+  const dotLabel = (d: FormDot) =>
+    d === "g" ? "placar exato" : d === "y" ? "saldo ou gols" : d === "r" ? "errou" : "sem palpite";
+
+  const FormDots = ({ userId, size = "sm" }: { userId: string; size?: "xs" | "sm" }) => {
+    const dots = recentForm[userId];
+    if (!dots || dots.length === 0) return null;
+    const cls = size === "xs" ? "h-1.5 w-1.5" : "h-2 w-2";
+    return (
+      <span className={`inline-flex items-center gap-0.5 ${size === "xs" ? "" : "ml-1"}`} aria-label="últimos 3 jogos">
+        {dots.map((d, i) => (
+          <span
+            key={i}
+            className={`${cls} rounded-full ${dotColor(d)}`}
+            title={`Jogo ${i + 1}: ${dotLabel(d)}`}
+          />
+        ))}
       </span>
     );
   };
@@ -241,12 +326,15 @@ export default function Ranking() {
                           {entry.exact_scores} exatos · {entry.goal_diff} saldo · {entry.one_side_goals} gols · {entry.results_only} result.
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <div className="text-lg font-bold text-primary tabular-nums leading-none">
-                          {entry.total_points}
-                          <PointsDelta userId={entry.user_id} current={entry.total_points} />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <FormDots userId={entry.user_id} size="xs" />
+                        <div className="text-right">
+                          <div className="text-lg font-bold text-primary tabular-nums leading-none">
+                            {entry.total_points}
+                            <PointsDelta userId={entry.user_id} current={entry.total_points} />
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">pts</div>
                         </div>
-                        <div className="text-[10px] text-muted-foreground">pts</div>
                       </div>
                     </div>
                   );
@@ -262,6 +350,7 @@ export default function Ranking() {
                     <TableRow>
                       <TableHead className="w-16">#</TableHead>
                       <TableHead>Jogador</TableHead>
+                      <TableHead className="text-center">Recentes</TableHead>
                       <TableHead className="text-center">Pontos</TableHead>
                       <TableHead className="text-center">Exatos</TableHead>
                       <TableHead className="text-center">Saldo</TableHead>
@@ -288,6 +377,9 @@ export default function Ranking() {
                         <TableCell className="font-medium">
                           {entry.name || "Anônimo"}
                           {isMe && <Badge className="ml-2 bg-primary/20 text-primary text-[10px]">você</Badge>}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="inline-flex justify-center"><FormDots userId={entry.user_id} /></span>
                         </TableCell>
                         <TableCell className="text-center font-bold text-primary text-lg">
                           {entry.total_points}
