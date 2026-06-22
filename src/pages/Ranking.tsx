@@ -115,6 +115,60 @@ export default function Ranking() {
       }
     }
 
+    // Farol: últimos 3 jogos finalizados, por usuário
+    const { data: lastMatches } = await supabase
+      .from("matches")
+      .select("id, home_score, away_score, match_date")
+      .eq("status", "finished")
+      .not("home_score", "is", null)
+      .not("away_score", "is", null)
+      .order("match_date", { ascending: false })
+      .limit(3);
+
+    const recentIds = ((lastMatches as any[]) || []).map((m) => m.id);
+    if (recentIds.length > 0) {
+      const resultById = new Map<string, { h: number; a: number }>();
+      ((lastMatches as any[]) || []).forEach((m) =>
+        resultById.set(m.id, { h: m.home_score, a: m.away_score })
+      );
+      const recentPreds = await fetchAllPredictions<{
+        user_id: string;
+        match_id: string;
+        home_score: number;
+        away_score: number;
+      }>("user_id, match_id, home_score, away_score", (q) => q.in("match_id", recentIds));
+
+      const classify = (ph: number, pa: number, rh: number, ra: number): FormDot => {
+        if (ph === rh && pa === ra) return "g";
+        const pr = Math.sign(ph - pa);
+        const rr = Math.sign(rh - ra);
+        if (pr !== rr) return "r";
+        if (rr !== 0 && ph - pa === rh - ra) return "y"; // saldo certo
+        if (ph === rh || pa === ra) return "y"; // gols de um lado
+        return "r"; // apenas resultado / empate sem placar exato
+      };
+
+      const byUser = new Map<string, Map<string, FormDot>>();
+      recentPreds.forEach((p) => {
+        const res = resultById.get(p.match_id);
+        if (!res) return;
+        const dot = classify(p.home_score, p.away_score, res.h, res.a);
+        if (!byUser.has(p.user_id)) byUser.set(p.user_id, new Map());
+        byUser.get(p.user_id)!.set(p.match_id, dot);
+      });
+
+      // recentIds está em ordem desc — vamos mostrar do mais antigo p/ mais recente
+      const orderedAsc = [...recentIds].reverse();
+      const form: Record<string, FormDot[]> = {};
+      sorted.forEach((u) => {
+        const userMap = byUser.get(u.user_id);
+        form[u.user_id] = orderedAsc.map((mid) => (userMap?.get(mid) ?? "r"));
+      });
+      setRecentForm(form);
+    } else {
+      setRecentForm({});
+    }
+
     setLoading(false);
   };
 
