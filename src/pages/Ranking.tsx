@@ -198,6 +198,7 @@ export default function Ranking() {
                             </div>
                             <div className="text-lg sm:text-xl font-bold text-primary tabular-nums">
                               {entry.total_points}
+                              <PointsDelta userId={entry.user_id} current={entry.total_points} />
                             </div>
                           </div>
                           <div className={`relative w-full rounded-t-lg flex items-center justify-center text-white font-bold text-2xl ${podiumHeights[heightIdx]} ${podiumColors[heightIdx]}`}>
