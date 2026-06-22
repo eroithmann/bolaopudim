@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchAllRows } from "@/lib/fetchAll";
+import { fetchAllPredictions } from "@/lib/fetchAllPredictions";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -19,11 +20,15 @@ interface RankingEntry {
   results_only: number;
 }
 
+// farol dos últimos 3 jogos: g=placar exato, y=saldo/gols de um lado, r=errou ou sem palpite
+type FormDot = "g" | "y" | "r" | null;
+
 export default function Ranking() {
   const { user } = useAuth();
   const [ranking, setRanking] = useState<RankingEntry[]>([]);
   const [previousPositions, setPreviousPositions] = useState<Record<string, number>>({});
   const [previousPoints, setPreviousPoints] = useState<Record<string, number>>({});
+  const [recentForm, setRecentForm] = useState<Record<string, FormDot[]>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
