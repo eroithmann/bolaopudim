@@ -207,8 +207,8 @@ export default function Ranking() {
     const delta = current - prev;
     if (delta <= 0) return null;
     return (
-      <span className="ml-1 text-[10px] font-medium text-emerald-600 tabular-nums align-middle">
-        (+{delta})
+      <span className="text-[10px] font-medium text-emerald-600 tabular-nums">
+        +{delta}
       </span>
     );
   };
