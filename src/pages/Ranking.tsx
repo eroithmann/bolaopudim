@@ -213,6 +213,32 @@ export default function Ranking() {
     );
   };
 
+  const dotColor = (d: FormDot) => {
+    if (d === "g") return "bg-emerald-500";
+    if (d === "y") return "bg-yellow-400";
+    if (d === "r") return "bg-red-500";
+    return "bg-muted-foreground/25";
+  };
+  const dotLabel = (d: FormDot) =>
+    d === "g" ? "placar exato" : d === "y" ? "saldo ou gols" : d === "r" ? "errou" : "sem palpite";
+
+  const FormDots = ({ userId, size = "sm" }: { userId: string; size?: "xs" | "sm" }) => {
+    const dots = recentForm[userId];
+    if (!dots || dots.length === 0) return null;
+    const cls = size === "xs" ? "h-1.5 w-1.5" : "h-2 w-2";
+    return (
+      <span className={`inline-flex items-center gap-0.5 ${size === "xs" ? "" : "ml-1"}`} aria-label="últimos 3 jogos">
+        {dots.map((d, i) => (
+          <span
+            key={i}
+            className={`${cls} rounded-full ${dotColor(d)}`}
+            title={`Jogo ${i + 1}: ${dotLabel(d)}`}
+          />
+        ))}
+      </span>
+    );
+  };
+
   const top3 = ranking.slice(0, 3);
   // Display order for podium: 2nd, 1st, 3rd
   const podiumOrder = [top3[1], top3[0], top3[2]].filter(Boolean);
