@@ -326,14 +326,14 @@ export default function Ranking() {
                           {entry.exact_scores} exatos · {entry.goal_diff} saldo · {entry.one_side_goals} gols · {entry.results_only} result.
                         </div>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <FormDots userId={entry.user_id} size="xs" />
-                        <div className="text-right">
-                          <div className="text-lg font-bold text-primary tabular-nums leading-none">
-                            {entry.total_points}
-                            <PointsDelta userId={entry.user_id} current={entry.total_points} />
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">pts</div>
+                      <div className="text-right shrink-0">
+                        <div className="text-lg font-bold text-primary tabular-nums leading-none">
+                          {entry.total_points}
+                          <PointsDelta userId={entry.user_id} current={entry.total_points} />
+                        </div>
+                        <div className="text-[10px] text-muted-foreground leading-none mt-0.5">pts</div>
+                        <div className="mt-1 flex justify-end">
+                          <FormDots userId={entry.user_id} size="xs" />
                         </div>
                       </div>
                     </div>
