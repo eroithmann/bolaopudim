@@ -135,9 +135,13 @@ export default function Admin() {
       if (data?.error) {
         toast({ title: "Erro nas odds", description: data.error, variant: "destructive" });
       } else {
+        const src = data?.source ? ` (${data.source})` : "";
+        const remaining = data?.remaining_quota ? ` · ${data.remaining_quota} req restantes` : "";
+        const desc = `${data?.refreshed || 0} de ${data?.total || 0} jogos com odds${remaining}.`;
         toast({
-          title: "Odds atualizadas!",
-          description: `${data?.refreshed || 0} de ${data?.total || 0} jogos com odds.`,
+          title: data?.refreshed > 0 ? `Odds atualizadas!${src}` : "Nenhuma odd atualizada",
+          description: desc,
+          variant: data?.refreshed === 0 ? "destructive" : "default",
         });
       }
     } catch (err: any) {
