@@ -1,30 +1,30 @@
-Diagnóstico encontrado:
+## Diagnóstico
 
-- As apostas não sumiram do banco: para TUN x JPN existem 21 apostas e todas têm pontos calculados.
-- A tela publicada mostrou 14/21 porque estava carregando só as primeiras 1000 linhas da tabela de apostas.
-- Hoje o banco já tem 1028 apostas; as 28 linhas além da 1000ª ficam invisíveis para a tela antiga. Isso bate exatamente com o print: TUN x JPN aparecendo 14/21 e ECU x CUR 19/21.
-- A tela do código atual já tem uma correção parcial com paginação, mas a versão publicada aparentemente ainda não está usando essa versão.
-- Também achei dois problemas de robustez no backend: gatilhos duplicados de auditoria/pontuação, que geram logs duplicados e podem recalcular/registrar mudanças mais de uma vez.
+A função `fetch-odds` falhou em todos os jogos porque a **API RapidAPI (free-api-live-football-data) estourou a cota mensal do plano BASIC**. Os logs mostram, para cada data consultada:
 
-Plano de correção:
+```
+API 429: You have exceeded the MONTHLY quota for Requests on your current plan, BASIC.
+```
 
-1. Garantir paginação completa na tela Galera
-   - Manter/validar o carregamento paginado de `predictions` em blocos de 1000 até não haver mais linhas.
-   - Confirmar que TUN x JPN aparece 21/21 e ECU x CUR 21/21 no preview.
+Como nenhuma fixture é retornada (`0 fixtures`), o matching time-a-time falha em 100% dos jogos e nada é gravado em `odds_cache`. Não é bug de código nem de mapeamento de nomes — é limite da conta RapidAPI esgotado até o próximo ciclo.
 
-2. Evitar regressão em outras telas com muitas apostas
-   - Revisar telas/consultas que carregam `predictions` para não dependerem do limite padrão de 1000 linhas.
-   - Ajustar apenas onde houver risco real de corte.
+## Solução proposta
 
-3. Limpar gatilhos duplicados no banco
-   - Remover o trigger duplicado de auditoria em `predictions`, deixando só um log por mudança.
-   - Remover triggers duplicados de recálculo/snapshot em `matches`, deixando uma execução por alteração.
-   - Não alterar regras de pontuação nem palpites existentes.
+Aproveitar o secret **`ODDS_API_KEY`** que já existe no projeto (the-odds-api.com) como **fonte primária de odds**, mantendo a RapidAPI apenas como fallback se algum dia o ODDS_API_KEY falhar. The Odds API tem cobertura nativa para "FIFA World Cup" e devolve odds 1X2 (h2h) já no formato decimal, sem precisar de busca por evento.
 
-4. Recalcular/ressincronizar dados finais
-   - Rodar uma migração segura que recalcula pontos de jogos finalizados com a regra atual.
-   - Reconstruir snapshots/ranking se necessário.
+### Mudanças
 
-5. Validar e publicar a correção
-   - Conferir no preview que a tela Galera mostra todos os palpites computados.
-   - Depois, publicar a versão corrigida para o domínio `bolaopudim.lovable.app`, porque o erro observado está na versão publicada.
+1. **`supabase/functions/fetch-odds/index.ts`** — em modo `refresh=true`:
+   - Tentar primeiro `https://api.the-odds-api.com/v4/sports/soccer_fifa_world_cup/odds?regions=eu&markets=h2h&oddsFormat=decimal` (1 única requisição cobre todos os jogos próximos).
+   - Para cada evento retornado, casar com nossos `matches` via `home_team`/`away_team` (usando o mesmo `normalize` + `aliases` que já existe).
+   - Calcular média das odds dos bookmakers (ou pegar o primeiro disponível, ex.: Bet365/Pinnacle se estiverem na lista) e fazer upsert em `odds_cache` com `source: "the-odds-api"`.
+   - Se a chamada retornar 401/429/erro, cair no caminho atual de RapidAPI sem alterar a lógica existente.
+   - Retornar no JSON `{ refreshed, total, source: "the-odds-api" | "rapidapi", logs }` para o admin enxergar a origem.
+
+2. **`src/pages/Admin.tsx`** (toast de "Atualizar Odds") — mostrar a fonte usada e, quando `refreshed === 0`, exibir uma mensagem clara: "Cota da API esgotada — odds não atualizadas".
+
+### Observações
+
+- Não há alteração de schema nem de RLS.
+- Continua sendo 1 chamada admin sob demanda, então não há risco de estourar o free tier do the-odds-api (500 req/mês).
+- Se preferir, posso também adicionar um botão "Limpar odds antigas" depois, mas não é necessário para resolver o problema atual.
