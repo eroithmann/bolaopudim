@@ -199,6 +199,113 @@ serve(async (req) => {
     });
   }
 
+  // ============ Try The Odds API first ============
+  const ODDS_API_KEY = Deno.env.get("ODDS_API_KEY");
+  if (ODDS_API_KEY) {
+    try {
+      const inTenDays = new Date(Date.now() + 10 * 86400 * 1000).toISOString();
+      const [{ data: matches }, { data: teams }] = await Promise.all([
+        supabase
+          .from("matches")
+          .select("id, match_date, home_team_id, away_team_id")
+          .eq("status", "scheduled")
+          .lte("match_date", inTenDays)
+          .order("match_date", { ascending: true }),
+        supabase.from("teams").select("id, name, code"),
+      ]);
+
+      const teamById = new Map((teams || []).map((t: any) => [t.id, { code: t.code, name: t.name }]));
+
+      const sportKey = "soccer_fifa_world_cup";
+      const oddsUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?regions=eu,uk&markets=h2h&oddsFormat=decimal&apiKey=${ODDS_API_KEY}`;
+      const res = await fetch(oddsUrl);
+      const txt = await res.text();
+      if (!res.ok) throw new Error(`the-odds-api ${res.status}: ${txt.slice(0, 200)}`);
+      const events: any[] = JSON.parse(txt);
+
+      const logs: string[] = [`the-odds-api: ${events.length} eventos, ${(matches || []).length} jogos nossos`];
+      let upserted = 0;
+
+      for (const m of matches || []) {
+        const home = teamById.get(m.home_team_id);
+        const away = teamById.get(m.away_team_id);
+        if (!home || !away) continue;
+
+        const ev = events.find((e) => {
+          const eh = teamCodeFromName(String(e?.home_team || ""), teamById);
+          const ea = teamCodeFromName(String(e?.away_team || ""), teamById);
+          return (
+            (eh === home.code && ea === away.code) ||
+            (eh === away.code && ea === home.code)
+          );
+        });
+        if (!ev) {
+          logs.push(`  sem evento para ${home.name} vs ${away.name}`);
+          continue;
+        }
+        const reversed = teamCodeFromName(String(ev.home_team || ""), teamById) === away.code;
+
+        // Average odds across bookmakers
+        const sums = { h: 0, d: 0, a: 0 };
+        const counts = { h: 0, d: 0, a: 0 };
+        let bookmaker = "average";
+        for (const bk of ev.bookmakers || []) {
+          const mk = (bk.markets || []).find((x: any) => x.key === "h2h");
+          if (!mk) continue;
+          const findPrice = (teamName: string) =>
+            mk.outcomes?.find((o: any) => o.name === teamName)?.price;
+          const ph = findPrice(ev.home_team);
+          const pa = findPrice(ev.away_team);
+          const pd = findPrice("Draw");
+          if (ph && pa) {
+            sums.h += ph; counts.h++;
+            sums.a += pa; counts.a++;
+            if (pd) { sums.d += pd; counts.d++; }
+          }
+        }
+        if (!counts.h || !counts.a) {
+          logs.push(`  sem 1X2 para ${home.code}-${away.code}`);
+          continue;
+        }
+        let homeOdd = sums.h / counts.h;
+        let awayOdd = sums.a / counts.a;
+        const drawOdd = counts.d ? sums.d / counts.d : null;
+        if (reversed) [homeOdd, awayOdd] = [awayOdd, homeOdd];
+
+        await supabase.from("odds_cache").upsert(
+          {
+            match_id: m.id,
+            home_odds: homeOdd.toFixed(2),
+            draw_odds: drawOdd ? drawOdd.toFixed(2) : null,
+            away_odds: awayOdd.toFixed(2),
+            bookmaker,
+            source: "the-odds-api",
+            fetched_at: new Date().toISOString(),
+          },
+          { onConflict: "match_id" }
+        );
+        upserted++;
+        logs.push(`  ✓ ${home.code} ${homeOdd.toFixed(2)} / ${drawOdd?.toFixed(2) ?? "?"} / ${awayOdd.toFixed(2)} ${away.code}`);
+      }
+
+      console.log(logs.join("\n"));
+      const remaining = res.headers.get("x-requests-remaining");
+      return new Response(
+        JSON.stringify({
+          refreshed: upserted,
+          total: (matches || []).length,
+          source: "the-odds-api",
+          remaining_quota: remaining,
+          logs: logs.slice(-40),
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    } catch (err: any) {
+      console.warn("the-odds-api falhou, caindo para RapidAPI:", err.message);
+      // Fall through to RapidAPI below
+    }
+  }
+
   try {
     // Load upcoming scheduled matches (next 10 days) and teams
     const inTenDays = new Date(Date.now() + 10 * 86400 * 1000).toISOString();
