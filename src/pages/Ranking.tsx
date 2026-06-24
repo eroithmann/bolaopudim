@@ -86,14 +86,25 @@ export default function Ranking() {
           orderedMatches.push(s.match_id);
         }
       });
-      if (orderedMatches.length >= 2) {
-        const prevMatchId = orderedMatches[orderedMatches.length - 2];
-        const prevByUser = new Map<string, number>();
-        snapshots.forEach((s: any) => {
-          if (s.match_id === prevMatchId) {
-            prevByUser.set(s.user_id, s.total_points);
-          }
-        });
+      // Mapa match_id -> (user_id -> total_points)
+      const byMatch = new Map<string, Map<string, number>>();
+      snapshots.forEach((s: any) => {
+        if (!byMatch.has(s.match_id)) byMatch.set(s.match_id, new Map());
+        byMatch.get(s.match_id)!.set(s.user_id, s.total_points);
+      });
+      const currentByUser = new Map(sorted.map((e) => [e.user_id, e.total_points]));
+      // Voltar do penúltimo até achar um snapshot com totais diferentes dos atuais
+      // (pula múltiplos jogos terminados simultaneamente com mesmos pontos)
+      let prevByUser: Map<string, number> | null = null;
+      for (let k = orderedMatches.length - 2; k >= 0; k--) {
+        const candidate = byMatch.get(orderedMatches[k])!;
+        let differs = false;
+        for (const [uid, cur] of currentByUser) {
+          if ((candidate.get(uid) ?? 0) !== cur) { differs = true; break; }
+        }
+        if (differs) { prevByUser = candidate; break; }
+      }
+      if (prevByUser) {
         const profileName = new Map(sorted.map((e) => [e.user_id, e.name]));
         const prevSorted = Array.from(prevByUser.entries())
           .map(([user_id, total_points]) => ({ user_id, total_points, name: profileName.get(user_id) || "" }))
@@ -114,6 +125,7 @@ export default function Ranking() {
         setPreviousPoints(Object.fromEntries(prevByUser));
       }
     }
+
 
     // Farol: últimos 3 jogos finalizados, por usuário
     const { data: lastMatches } = await supabase
