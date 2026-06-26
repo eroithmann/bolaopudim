@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, RefreshCw, Save, Check, Download, TrendingUp, Tv } from "lucide-react";
+import { Shield, RefreshCw, Save, Check, Download, TrendingUp, Tv, Trophy, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import PredictionStatus from "@/components/admin/PredictionStatus";
 import NewsletterCard from "@/components/admin/NewsletterCard";
 
@@ -38,6 +39,40 @@ export default function Admin() {
   const [seedingMatches, setSeedingMatches] = useState(false);
   const [refreshingOdds, setRefreshingOdds] = useState(false);
   const [refreshingBroadcasts, setRefreshingBroadcasts] = useState(false);
+  const [seedingKnockout, setSeedingKnockout] = useState<string | null>(null);
+
+  const KNOCKOUT_PHASES: { key: string; label: string }[] = [
+    { key: "round_of_32", label: "32-avos de final" },
+    { key: "round_of_16", label: "Oitavas de final" },
+    { key: "quarterfinals", label: "Quartas de final" },
+    { key: "semifinals", label: "Semifinais" },
+    { key: "third_place", label: "Disputa de 3º lugar" },
+    { key: "final", label: "Final" },
+  ];
+
+  const seedKnockoutPhase = async (phase: string, label: string) => {
+    setSeedingKnockout(phase);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-knockout-matches", {
+        body: { phase },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Erro", description: data.error, variant: "destructive" });
+      } else {
+        const unm = (data?.unmatched as string[] | undefined) ?? [];
+        let desc = `${data?.created ?? 0} criados, ${data?.updated ?? 0} atualizados.`;
+        if (data?.skipped_finished) desc += ` ${data.skipped_finished} já finalizados (preservados).`;
+        if (unm.length) desc += ` Não casados: ${unm.slice(0, 3).join(", ")}${unm.length > 3 ? "…" : ""}`;
+        if (data?.message) desc = data.message;
+        toast({ title: `${label}: importação concluída`, description: desc });
+        fetchMatches();
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao importar fase", description: err.message, variant: "destructive" });
+    }
+    setSeedingKnockout(null);
+  };
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
@@ -198,6 +233,24 @@ export default function Admin() {
               <Tv className={`h-4 w-4 mr-2 ${refreshingBroadcasts ? "animate-spin" : ""}`} />
               {refreshingBroadcasts ? "Atualizando..." : "Atualizar Transmissões"}
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={!!seedingKnockout}>
+                  <Trophy className={`h-4 w-4 mr-2 ${seedingKnockout ? "animate-spin" : ""}`} />
+                  {seedingKnockout
+                    ? `Importando ${KNOCKOUT_PHASES.find((p) => p.key === seedingKnockout)?.label}...`
+                    : "Importar mata-mata"}
+                  <ChevronDown className="h-3 w-3 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {KNOCKOUT_PHASES.map((p) => (
+                  <DropdownMenuItem key={p.key} onClick={() => seedKnockoutPhase(p.key, p.label)}>
+                    {p.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
