@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, RefreshCw, Save, Check, Download, TrendingUp, Tv } from "lucide-react";
+import { Shield, RefreshCw, Save, Check, Download, TrendingUp, Tv, Trophy, ChevronDown } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import PredictionStatus from "@/components/admin/PredictionStatus";
 import NewsletterCard from "@/components/admin/NewsletterCard";
 
