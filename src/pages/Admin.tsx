@@ -39,6 +39,40 @@ export default function Admin() {
   const [seedingMatches, setSeedingMatches] = useState(false);
   const [refreshingOdds, setRefreshingOdds] = useState(false);
   const [refreshingBroadcasts, setRefreshingBroadcasts] = useState(false);
+  const [seedingKnockout, setSeedingKnockout] = useState<string | null>(null);
+
+  const KNOCKOUT_PHASES: { key: string; label: string }[] = [
+    { key: "round_of_32", label: "32-avos de final" },
+    { key: "round_of_16", label: "Oitavas de final" },
+    { key: "quarterfinals", label: "Quartas de final" },
+    { key: "semifinals", label: "Semifinais" },
+    { key: "third_place", label: "Disputa de 3º lugar" },
+    { key: "final", label: "Final" },
+  ];
+
+  const seedKnockoutPhase = async (phase: string, label: string) => {
+    setSeedingKnockout(phase);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-knockout-matches", {
+        body: { phase },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: "Erro", description: data.error, variant: "destructive" });
+      } else {
+        const unm = (data?.unmatched as string[] | undefined) ?? [];
+        let desc = `${data?.created ?? 0} criados, ${data?.updated ?? 0} atualizados.`;
+        if (data?.skipped_finished) desc += ` ${data.skipped_finished} já finalizados (preservados).`;
+        if (unm.length) desc += ` Não casados: ${unm.slice(0, 3).join(", ")}${unm.length > 3 ? "…" : ""}`;
+        if (data?.message) desc = data.message;
+        toast({ title: `${label}: importação concluída`, description: desc });
+        fetchMatches();
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao importar fase", description: err.message, variant: "destructive" });
+    }
+    setSeedingKnockout(null);
+  };
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) navigate("/");
