@@ -233,6 +233,24 @@ export default function Admin() {
               <Tv className={`h-4 w-4 mr-2 ${refreshingBroadcasts ? "animate-spin" : ""}`} />
               {refreshingBroadcasts ? "Atualizando..." : "Atualizar Transmissões"}
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" disabled={!!seedingKnockout}>
+                  <Trophy className={`h-4 w-4 mr-2 ${seedingKnockout ? "animate-spin" : ""}`} />
+                  {seedingKnockout
+                    ? `Importando ${KNOCKOUT_PHASES.find((p) => p.key === seedingKnockout)?.label}...`
+                    : "Importar mata-mata"}
+                  <ChevronDown className="h-3 w-3 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {KNOCKOUT_PHASES.map((p) => (
+                  <DropdownMenuItem key={p.key} onClick={() => seedKnockoutPhase(p.key, p.label)}>
+                    {p.label}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
