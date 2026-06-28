@@ -319,22 +319,22 @@ serve(async (req) => {
       }
 
       console.log(logs.join("\n"));
-      const remaining = res.headers.get("x-requests-remaining");
       return new Response(
         JSON.stringify({
           refreshed: upserted,
           total: (matches || []).length,
-          source: "the-odds-api",
-          remaining_quota: remaining,
-          logs: logs.slice(-40),
+          source: `the-odds-api (${usedKey})`,
+          logs: [...odLogs, ...logs].slice(-60),
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } catch (err: any) {
       console.warn("the-odds-api falhou, caindo para RapidAPI:", err.message);
-      // Fall through to RapidAPI below
+      // Anexa diagnóstico no fallback
+      (globalThis as any).__oddsApiError = `${err.message} :: ${odLogs.join(" | ")}`;
     }
   }
+
 
   try {
     // Load upcoming scheduled matches (next 10 days) and teams
