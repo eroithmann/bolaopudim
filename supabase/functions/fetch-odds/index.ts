@@ -366,6 +366,9 @@ serve(async (req) => {
     }
 
     const logs: string[] = [];
+    const oddsApiErr = (globalThis as any).__oddsApiError;
+    if (oddsApiErr) logs.push(`[the-odds-api fallback motivo] ${oddsApiErr}`);
+
     let upserted = 0;
 
     // Fixture cache per API date (API dates can differ from ours due to timezone)
