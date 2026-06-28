@@ -202,6 +202,7 @@ serve(async (req) => {
   // ============ Try The Odds API first ============
   const ODDS_API_KEY = Deno.env.get("ODDS_API_KEY");
   if (ODDS_API_KEY) {
+    const odLogs: string[] = [];
     try {
       const inTenDays = new Date(Date.now() + 10 * 86400 * 1000).toISOString();
       const [{ data: matches }, { data: teams }] = await Promise.all([
@@ -216,12 +217,41 @@ serve(async (req) => {
 
       const teamById = new Map((teams || []).map((t: any) => [t.id, { code: t.code, name: t.name }]));
 
-      const sportKey = "soccer_fifa_world_cup";
-      const oddsUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?regions=eu,uk&markets=h2h&oddsFormat=decimal&apiKey=${ODDS_API_KEY}`;
-      const res = await fetch(oddsUrl);
-      const txt = await res.text();
-      if (!res.ok) throw new Error(`the-odds-api ${res.status}: ${txt.slice(0, 200)}`);
-      const events: any[] = JSON.parse(txt);
+      // Try multiple sport keys (knockout fixtures may live under different keys)
+      const sportKeys = [
+        "soccer_fifa_world_cup",
+        "soccer_fifa_world_cup_2026",
+      ];
+      let events: any[] = [];
+      let usedKey = "";
+      let lastErr = "";
+      for (const sportKey of sportKeys) {
+        const oddsUrl = `https://api.the-odds-api.com/v4/sports/${sportKey}/odds?regions=eu,uk,us&markets=h2h&oddsFormat=decimal&apiKey=${ODDS_API_KEY}`;
+        const res = await fetch(oddsUrl);
+        const txt = await res.text();
+        if (!res.ok) {
+          lastErr = `${sportKey} -> ${res.status}: ${txt.slice(0, 160)}`;
+          odLogs.push(lastErr);
+          continue;
+        }
+        try {
+          const parsed = JSON.parse(txt);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            events = parsed;
+            usedKey = sportKey;
+            odLogs.push(`${sportKey}: ${parsed.length} eventos`);
+            break;
+          } else {
+            odLogs.push(`${sportKey}: 0 eventos`);
+          }
+        } catch (e: any) {
+          odLogs.push(`${sportKey}: JSON parse fail`);
+        }
+      }
+      if (events.length === 0) {
+        throw new Error(`the-odds-api sem eventos. ${lastErr || odLogs.join(" | ")}`);
+      }
+
 
       const logs: string[] = [`the-odds-api: ${events.length} eventos, ${(matches || []).length} jogos nossos`];
       let upserted = 0;
