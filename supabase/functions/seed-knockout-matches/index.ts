@@ -349,6 +349,7 @@ serve(async (req) => {
       created,
       updated,
       skipped_finished: skippedFinished,
+      skipped_placeholders: skippedPlaceholders,
       unmatched,
       api_total: apiMatches.length,
     }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
