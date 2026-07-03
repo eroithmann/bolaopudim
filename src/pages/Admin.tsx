@@ -61,8 +61,10 @@ export default function Admin() {
         toast({ title: "Erro", description: data.error, variant: "destructive" });
       } else {
         const unm = (data?.unmatched as string[] | undefined) ?? [];
+        const skp = (data?.skipped_placeholders as { raw: string; date: string | null }[] | undefined) ?? [];
         let desc = `${data?.created ?? 0} criados, ${data?.updated ?? 0} atualizados.`;
         if (data?.skipped_finished) desc += ` ${data.skipped_finished} já finalizados (preservados).`;
+        if (skp.length) desc += ` ${skp.length} ainda indefinidos na API (${skp.slice(0, 2).map((s) => s.raw).join("; ")}${skp.length > 2 ? "…" : ""}).`;
         if (unm.length) desc += ` Não casados: ${unm.slice(0, 3).join(", ")}${unm.length > 3 ? "…" : ""}`;
         if (data?.message) desc = data.message;
         toast({ title: `${label}: importação concluída`, description: desc });
