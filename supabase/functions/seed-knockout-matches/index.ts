@@ -200,34 +200,112 @@ serve(async (req) => {
     let updated = 0;
     let skippedFinished = 0;
     const unmatched: string[] = [];
+    const skippedPlaceholders: { raw: string; date: string | null }[] = [];
     const toInsert: any[] = [];
 
-    for (const m of apiMatches) {
-      const homeName = m.homeTeam?.name ?? "";
-      const awayName = m.awayTeam?.name ?? "";
-      const label = `${homeName} vs ${awayName}`;
+    // ---- Detecta placeholder (Winner Match X, TBD, W47, L23, Runner-up A, etc.) ----
+    const PLACEHOLDER_RE = /\b(tbd|winner|loser|runner[- ]?up|w\d+|l\d+|group\s+[a-l]|match\s+\d+)\b/i;
+    const isPlaceholder = (name: string) =>
+      !name || !name.trim() || PLACEHOLDER_RE.test(name);
 
-      if (!homeName || !awayName || homeName.toLowerCase().includes("tbd") || awayName.toLowerCase().includes("tbd")) {
-        // Confronto ainda indefinido na API — pula
-        continue;
+    // ---- Fallback: free-api-live-football-data (RAPIDAPI) para resolver placeholders ----
+    const RAPID_HOST = "free-api-live-football-data.p.rapidapi.com";
+    const RAPID_KEY = Deno.env.get("RAPIDAPI_KEY");
+    const rapidByDate: Record<string, any[]> = {};
+    async function rapidFixtures(dateStr: string): Promise<any[]> {
+      if (!RAPID_KEY) return [];
+      if (rapidByDate[dateStr]) return rapidByDate[dateStr];
+      try {
+        const res = await fetch(`https://${RAPID_HOST}/football-get-matches-by-date?date=${dateStr}`, {
+          headers: { "X-RapidAPI-Key": RAPID_KEY, "X-RapidAPI-Host": RAPID_HOST },
+        });
+        if (!res.ok) {
+          console.warn(`rapid ${dateStr}: ${res.status}`);
+          rapidByDate[dateStr] = [];
+          return [];
+        }
+        const j = await res.json();
+        const list = j?.response?.matches || j?.response || j?.matches || (Array.isArray(j) ? j : []);
+        rapidByDate[dateStr] = Array.isArray(list) ? list : [];
+      } catch (e) {
+        console.warn(`rapid ${dateStr} err`, e);
+        rapidByDate[dateStr] = [];
+      }
+      return rapidByDate[dateStr];
+    }
+    const ymd = (iso: string) => iso.slice(0, 10).replace(/-/g, "");
+    const shift = (iso: string, d: number) => {
+      const dt = new Date(iso);
+      dt.setUTCDate(dt.getUTCDate() + d);
+      return dt.toISOString();
+    };
+
+    async function resolvePlaceholder(utcDate: string | null): Promise<{ home: string; away: string; fxTimeIso?: string } | null> {
+      if (!utcDate) return null;
+      const target = new Date(utcDate).getTime();
+      const candidates: any[] = [];
+      for (const d of [utcDate, shift(utcDate, 1), shift(utcDate, -1)]) {
+        candidates.push(...(await rapidFixtures(ymd(d))));
+      }
+      // Match by ±90min tolerance to the fixture's UTC start
+      let best: any = null;
+      let bestDelta = Infinity;
+      for (const f of candidates) {
+        const t = f?.time || f?.utcDate || f?.date || f?.startTime || f?.status?.utcTime || f?.status?.startAt;
+        let ts: number | null = null;
+        if (typeof t === "number") ts = t < 1e12 ? t * 1000 : t;
+        else if (typeof t === "string") { const p = Date.parse(t); if (!isNaN(p)) ts = p; }
+        if (ts == null) continue;
+        const delta = Math.abs(ts - target);
+        if (delta > 90 * 60 * 1000) continue;
+        const league = (f?.leagueName || f?.league?.name || f?.tournament?.name || "").toString().toLowerCase();
+        if (league && !/(world cup|copa do mundo|mundial|fifa)/i.test(league)) continue;
+        if (delta < bestDelta) { best = f; bestDelta = delta; }
+      }
+      if (!best) return null;
+      const home = best?.home?.name || best?.homeTeam?.name || best?.teams?.home?.name || best?.home_team || "";
+      const away = best?.away?.name || best?.awayTeam?.name || best?.teams?.away?.name || best?.away_team || "";
+      if (!home || !away) return null;
+      return { home, away };
+    }
+
+    for (const m of apiMatches) {
+      let homeName = m.homeTeam?.name ?? "";
+      let awayName = m.awayTeam?.name ?? "";
+      const utcDate = m.utcDate ?? null;
+      const rawLabel = `${homeName || "?"} vs ${awayName || "?"}`;
+
+      // Se placeholder, tenta resolver via RapidAPI
+      if (isPlaceholder(homeName) || isPlaceholder(awayName)) {
+        console.log(`⏳ placeholder detectado: ${rawLabel} @ ${utcDate} — tentando fallback`);
+        const resolved = await resolvePlaceholder(utcDate);
+        if (resolved) {
+          console.log(`   ✓ resolvido para: ${resolved.home} vs ${resolved.away}`);
+          homeName = resolved.home;
+          awayName = resolved.away;
+        } else {
+          console.log(`   ✗ não resolvido`);
+          skippedPlaceholders.push({ raw: rawLabel, date: utcDate });
+          continue;
+        }
       }
 
       const home = findTeam(teams ?? [], homeName);
       const away = findTeam(teams ?? [], awayName);
       if (!home || !away) {
-        unmatched.push(label);
-        console.log(`❌ não casou: ${label}`);
+        unmatched.push(`${homeName} vs ${awayName}`);
+        console.log(`❌ não casou: ${homeName} vs ${awayName}`);
         continue;
       }
 
       const pair = `${home.id}|${away.id}`;
-      const existingMatch = existingByPair.get(pair);
+      const reversePair = `${away.id}|${home.id}`;
+      const existingMatch = existingByPair.get(pair) ?? existingByPair.get(reversePair);
       const venue = m.venue ?? null;
-      const matchDate = m.utcDate ?? null;
+      const matchDate = utcDate;
       const apiFixtureId = m.id ?? null;
 
       if (existingMatch) {
-        // SAFE: nunca tocar em placar/status; só metadata, e só se ainda não finalizado
         if (existingMatch.status === "finished") {
           skippedFinished++;
           continue;
