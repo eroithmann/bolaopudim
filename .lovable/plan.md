@@ -1,61 +1,37 @@
-## Objetivo
+## Problema
 
-Importar progressivamente os jogos do mata-mata (32-avos, oitavas, quartas, semi, 3º lugar, final) conforme cada fase é definida, **sem nunca sobrescrever jogos já existentes** (placares, status, palpites, datas editadas manualmente).
+A `seed-knockout-matches` importa oitavas do `football-data.org` (`stage=LAST_16`). A API retorna 8 fixtures, mas 3 ainda vêm com placeholders (`"Winner Match 47"`, `""`, `"TBD"`) porque esse feed demora a preencher confrontos. Por isso Espanha×Portugal, Alemanha×… e Argentina×… não entram — a função pula silenciosamente qualquer fixture com nome vazio/`tbd` e o restante não casa em `findTeam`, sem aparecer em `unmatched`.
 
-## Garantia de segurança (vale para todas as fases)
+Além disso, o filtro atual só olha `"tbd"`. Nomes tipo `"Winner Match 47"` não são pulados no filtro, vão pro `findTeam`, não casam e — pelo log atual — não aparecem em `unmatched` (provavelmente porque `homeName`/`awayName` chegou vazio; de qualquer forma, hoje não temos visibilidade).
 
-A nova lógica de upsert por fase segue o mesmo padrão já validado na `seed-matches-from-api` atual:
+## Solução
 
-1. Cada execução é **escopada a uma única `phase`** (`round_of_32`, `round_of_16`, `quarterfinals`, `semifinals`, `third_place`, `final`). Jogos de outras fases nunca entram na query — impossível tocar fase de grupos rodando o R16, etc.
-2. Chave de identidade: `home_team_id + away_team_id + phase`.
-3. Se o jogo **já existe**: atualiza só `match_date`, `venue` (quando vier diferente). **Nunca** mexe em `home_score`, `away_score`, `status`, `result_source`.
-4. Se **não existe**: insere com `status='scheduled'`.
-5. **Não deleta** jogos de mata-mata sob hipótese nenhuma (diferente do que faz hoje na fase de grupos com "sobras"). Mata-mata pode ter confronto reorganizado pela FIFA e queremos preservar palpites a todo custo.
-6. Times faltantes (caso algum classificado ainda não exista no `teams`) são criados sob demanda, como já acontece hoje.
+### 1. Trocar a fonte para API-Football (RAPIDAPI), mantendo football-data como fallback
 
-## Implementação
+- API-Football já é usada em `fetch-odds` e `fetch-match-results`, com `RAPIDAPI_KEY` configurada.
+- Endpoint: `GET https://api-football-v1.p.rapidapi.com/v3/fixtures?league=1&season=2026&round=Round of 16` (mesmos `round` labels para cada fase: `Round of 32`, `Round of 16`, `Quarter-finals`, `Semi-finals`, `3rd Place Final`, `Final`).
+- Esse feed publica os confrontos assim que a fase anterior fecha, com nomes reais dos times (Spain, Portugal, Germany, Argentina, etc.), casando com o `teams` via o mesmo `findTeam`/`teamAliases` já existente na função.
 
-### 1. Nova edge function `seed-knockout-matches`
+Fluxo novo dentro da `seed-knockout-matches`:
+1. Tenta API-Football (RAPIDAPI) primeiro. Se retornar ≥1 fixture com nomes reais (não vazio, não `tbd`, não `winner`), usa esse resultado.
+2. Se API-Football falhar (429/403/erro/rota vazia), cai para football-data.org com a lógica atual.
+3. Toda a parte de upsert (matching por par `home_team_id|away_team_id`, `skipped_finished`, `unmatched`, `api_fixture_id`) continua igual — só muda a origem do array `apiMatches` e o parser para o shape do API-Football (`fixture.id`, `teams.home.name`, `teams.away.name`, `fixture.date`, `fixture.venue.name`).
 
-Aceita `phase` no body (`round_of_32` | `round_of_16` | `quarterfinals` | `semifinals` | `third_place` | `final`).
+### 2. Melhorar o filtro de placeholder e a visibilidade
 
-Fluxo:
-- Chama API-Football (RAPIDAPI_KEY, mesma usada hoje) filtrando fixtures da Copa 2026 pela fase pedida.
-- Faz o matching `home`/`away` contra `teams` usando o mesmo normalizador + aliases já existentes na `fetch-match-results` (extraio para um util compartilhado em `_shared/teamMatch.ts` para não duplicar).
-- Para cada fixture casada, aplica o upsert seguro descrito acima.
-- Retorna `{ phase, created, updated, skipped_unmatched, unmatched: [...] }`.
+- Ampliar o guard para detectar `tbd`, `winner`, `loser`, `runner-up`, `w\d+`, `l\d+` e nome vazio; incluir esses casos numa nova lista `skipped_placeholders` no retorno (não em `unmatched`, que continua sendo "casamento com `teams` falhou").
+- Log explícito no console para cada fixture pulada, dizendo o motivo (`placeholder` ou `unmatched`), para depurar via logs da função.
 
-Se a API estiver indisponível ou não tiver os confrontos ainda (caso comum antes do último jogo da fase anterior), retorna `{ created: 0, updated: 0, message: "Confrontos ainda não disponíveis na API" }` — sem erro.
+### 3. UI Admin
 
-### 2. UI no Admin (`src/pages/Admin.tsx`)
+Sem mudança de UI. O toast já mostra `created / updated / unmatched`; adiciono `skipped_placeholders` na mesma mensagem para o admin saber que a API ainda não publicou aqueles confrontos.
 
-Substituo o botão único "Importar Jogos da API" por um pequeno menu com 6 ações, uma por fase:
+## Arquivos afetados
 
-```
-Importar fase ▾
-  ├─ 32-avos
-  ├─ Oitavas
-  ├─ Quartas
-  ├─ Semifinais
-  ├─ 3º lugar
-  └─ Final
-```
-
-O botão "Importar Jogos da API" (fase de grupos) continua existindo separado, apontando para a função antiga `seed-matches-from-api` — sem alteração nela.
-
-Toast mostra: `X criados, Y atualizados, Z não casados (lista resumida)`.
-
-### 3. (Opcional, mesmo PR) Hardening na `seed-matches-from-api` atual
-
-Adiciono guard explícito para **bloquear** updates quando `existing.status = 'finished'`, mesmo nos metadados — hoje ela atualiza `match_date` mesmo em jogo finalizado, o que é inofensivo mas confuso. Pequena melhoria de robustez.
-
-## Detalhes técnicos
-
-- Phase IDs FIFA na API-Football v3 (`/fixtures?league=1&season=2026&round=...`): `Round of 32`, `Round of 16`, `Quarter-finals`, `Semi-finals`, `3rd Place Final`, `Final`. Mapeio para nosso enum interno.
-- Util de matching extraído: `supabase/functions/_shared/teamMatch.ts` com `normalize(name)`, `aliases`, `findTeamByName(teams, apiName)`. Refatoro a `fetch-match-results` no mesmo passo para usar o util (mantendo o comportamento atual).
-- Sem migrations. Sem mudança de schema.
+- `supabase/functions/seed-knockout-matches/index.ts` — adicionar fetch API-Football + fallback football-data + filtro de placeholders + logging.
+- `src/pages/Admin.tsx` — incluir `skipped_placeholders` no toast (1 linha).
 
 ## Fora do escopo
 
-- Não vou auto-rodar nada via cron — fica manual no Admin, você dispara após cada fase fechar.
-- Não mexo no scoring nem no `phase_multiplier` (já cobre todas as fases).
+- Não mexer em `fetch-match-results`, `fetch-odds`, scoring, `phase_multiplier`, nem no schema.
+- Não sobrescrever placar/status de jogos já existentes (a guard atual continua).
