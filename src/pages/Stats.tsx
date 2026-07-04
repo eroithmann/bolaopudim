@@ -5,6 +5,7 @@ import { useGamificationData } from "@/hooks/useGamificationData";
 import { useAuth } from "@/contexts/AuthContext";
 import RoundPodium from "@/components/gamification/RoundPodium";
 import AlternativeRankings from "@/components/gamification/AlternativeRankings";
+import PhasePointsRanking from "@/components/gamification/PhasePointsRanking";
 import HeadToHead from "@/components/gamification/HeadToHead";
 import TournamentProgress from "@/components/gamification/TournamentProgress";
 import { aggregateUsers, computeRoundPodium } from "@/lib/gamification";
