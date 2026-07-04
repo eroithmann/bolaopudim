@@ -44,7 +44,7 @@ export default function PhasePointsRanking({ profiles, matches, predictions, cur
     return Array.from(pointsByUser.entries())
       .map(([user_id, points]) => ({ user_id, name: nameById.get(user_id) || "Anônimo", points }))
       .sort((a, b) => b.points - a.points)
-      .slice(0, 10);
+      .slice(0, 20);
   }, [active, matches, predictions, profiles]);
 
   if (availablePhases.length === 0) return null;
