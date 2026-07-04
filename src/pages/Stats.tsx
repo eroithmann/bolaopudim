@@ -5,6 +5,7 @@ import { useGamificationData } from "@/hooks/useGamificationData";
 import { useAuth } from "@/contexts/AuthContext";
 import RoundPodium from "@/components/gamification/RoundPodium";
 import AlternativeRankings from "@/components/gamification/AlternativeRankings";
+import PhasePointsRanking from "@/components/gamification/PhasePointsRanking";
 import HeadToHead from "@/components/gamification/HeadToHead";
 import TournamentProgress from "@/components/gamification/TournamentProgress";
 import { aggregateUsers, computeRoundPodium } from "@/lib/gamification";
@@ -39,6 +40,12 @@ export default function Stats() {
             <TournamentProgress matches={data.matches} />
             {podium && <RoundPodium podium={podium} />}
             <AlternativeRankings users={aggs} currentUserId={user?.id} />
+            <PhasePointsRanking
+              profiles={data.profiles}
+              matches={data.matches}
+              predictions={data.predictions}
+              currentUserId={user?.id}
+            />
             <HeadToHead
               profiles={data.profiles}
               matches={data.matches}
