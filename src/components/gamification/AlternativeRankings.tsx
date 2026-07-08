@@ -32,7 +32,7 @@ export default function AlternativeRankings({ users, currentUserId }: Props) {
 
   const metric = METRICS.find((m) => m.key === active)!;
   const sorted = [...users].sort((a, b) => (b[active] as number) - (a[active] as number));
-  const top = sorted.slice(0, 20).filter((u) => (u[active] as number) > 0 || active === "rankClimb");
+  const top = sorted.slice(0, 20);
 
   return (
     <Card>
