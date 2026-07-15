@@ -12,6 +12,7 @@ import PublicBets from "./pages/PublicBets";
 import Profile from "./pages/Profile";
 import Stats from "./pages/Stats";
 import Admin from "./pages/Admin";
+import Wrapped from "./pages/Wrapped";
 import Demo from "./pages/Demo";
 import NotFound from "./pages/NotFound";
 
