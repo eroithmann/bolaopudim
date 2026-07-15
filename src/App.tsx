@@ -12,6 +12,7 @@ import PublicBets from "./pages/PublicBets";
 import Profile from "./pages/Profile";
 import Stats from "./pages/Stats";
 import Admin from "./pages/Admin";
+import Wrapped from "./pages/Wrapped";
 import Demo from "./pages/Demo";
 import NotFound from "./pages/NotFound";
 
@@ -33,6 +34,7 @@ const App = () => (
             <Route path="/stats" element={<Stats />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/wrapped" element={<Wrapped />} />
             <Route path="/demo" element={<Demo />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
