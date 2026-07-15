@@ -138,6 +138,25 @@ export default function Profile() {
           </CardContent>
         </Card>
 
+        {stats && stats.finishedWithPrediction >= 5 && (
+          <Card
+            className="cursor-pointer border-0 text-white overflow-hidden hover-scale shadow-xl"
+            style={{ background: "linear-gradient(135deg, #7c3aed 0%, #ec4899 50%, #f59e0b 100%)" }}
+            onClick={() => navigate("/wrapped")}
+          >
+            <CardContent className="p-5 sm:p-6 flex items-center justify-between gap-4">
+              <div>
+                <div className="text-xs uppercase tracking-widest opacity-90 font-bold">🎁 Bolão Wrapped</div>
+                <div className="text-xl sm:text-2xl font-black mt-1">Sua retrospectiva chegou!</div>
+                <div className="text-sm opacity-90 mt-1">Toque para reviver sua temporada</div>
+              </div>
+              <Button variant="secondary" className="bg-white text-black hover:bg-white/90 font-bold shrink-0">
+                Ver 🎁
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {stats && (
           <>
             <div className="flex justify-end">
